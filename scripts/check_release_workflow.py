@@ -21,6 +21,7 @@ required = [
     "NODE_PATH=$(npm root -g) node scripts/build_web.cjs",
     "go test ./...",
     "NODE_PATH=$(npm root -g) vitest run",
+    "npm install -g esbuild typescript vitest happy-dom",
     "contents: write",
 ]
 missing = [item for item in required if item not in text]

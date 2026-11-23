@@ -144,12 +144,15 @@ cd web && NODE_PATH=$(npm root -g) vitest run
 esbuild
 typescript
 vitest
+happy-dom
 ```
+
+`happy-dom` 是 `web/vitest.config.mjs` 中声明的测试环境，必须安装，否则 CI 中 Vitest 会报 `Cannot find package 'happy-dom'`。
 
 workflow 中安装：
 
 ```bash
-npm install -g esbuild typescript vitest
+npm install -g esbuild typescript vitest happy-dom
 ```
 
 Web 构建只执行一次：

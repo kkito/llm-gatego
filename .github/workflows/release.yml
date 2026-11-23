@@ -40,7 +40,7 @@ jobs:
           node-version: '24'
 
       - name: Install web tools
-        run: npm install -g esbuild typescript vitest
+        run: npm install -g esbuild typescript vitest happy-dom
 
       - name: Run Go tests
         run: go test ./...
