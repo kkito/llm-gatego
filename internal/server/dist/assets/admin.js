@@ -167,6 +167,98 @@ tbody tr:hover{background:#FAFBFF}
 }
 `;
 
+  // web/src/styles/console_pages.ts
+  var pageCSS = `
+/* \u6A21\u578B\u7BA1\u7406 */
+.models-table .model-name-cell{display:flex;flex-direction:column;gap:2px}
+.models-table .model-custom-name{font-weight:700;color:var(--gw-ink)}
+.models-table .model-real-name{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.72rem;color:var(--gw-muted)}
+.models-table .model-desc-cell{max-width:240px;white-space:normal;color:var(--gw-muted)}
+.actions-cell{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.order-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--gw-line);background:#fff;color:var(--gw-muted);cursor:pointer;font-weight:700}
+.order-btn:hover:not(:disabled){border-color:var(--gw-accent);color:var(--gw-accent)}
+.order-btn:disabled{opacity:.35;cursor:not-allowed}
+.model-count{margin:0 0 12px;color:var(--gw-muted);font-size:.82rem}
+
+/* \u7528\u6237\u7BA1\u7406 */
+.user-card{padding:16px 18px}
+.user-card-header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.user-avatar{width:40px;height:40px;border-radius:10px;background:var(--gw-soft);color:var(--gw-accent);display:flex;align-items:center;justify-content:center;font-weight:800}
+.user-name{margin:0;font-size:.98rem;font-weight:700}
+.user-desc{margin:0;color:var(--gw-muted);font-size:.78rem}
+.user-apikey-row{display:flex;align-items:center;gap:8px;padding:9px 10px;background:#F9FAFB;border:1px solid var(--gw-line);border-radius:8px;margin:8px 0}
+.user-apikey-label{color:var(--gw-muted);font-size:.72rem}
+.user-apikey-value{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.78rem;word-break:break-all}
+.user-card-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.user-info{font-size:.8rem;color:var(--gw-muted)}
+
+/* API Keys */
+.key-card{padding:16px 18px}
+.key-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.key-name{display:flex;align-items:center;gap:8px;font-weight:700}
+.key-value{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.78rem;background:#F9FAFB;border:1px solid var(--gw-line);border-radius:7px;padding:8px 10px;word-break:break-all}
+.key-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.key-date{color:var(--gw-muted);font-size:.74rem}
+.apikey-note,.form-hint{color:var(--gw-muted);font-size:.78rem}
+
+/* \u6A21\u578B\u7EC4 */
+.group-card{padding:16px 18px}
+.group-card-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.group-name{margin:0;font-size:.98rem;font-weight:700}
+.group-models-count{color:var(--gw-muted);font-size:.75rem}
+.group-desc{color:var(--gw-muted);font-size:.8rem;min-height:20px}
+.group-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.model-selector{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.model-list-title{font-weight:700;font-size:.82rem;margin:0 0 8px}
+.model-list{border:1px solid var(--gw-line);border-radius:9px;min-height:180px;max-height:320px;overflow:auto;padding:6px}
+.model-item,.available-model-item,.selected-model-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:0;border-bottom:1px solid var(--gw-line);border-radius:0;box-shadow:none!important;background:transparent!important;font-size:.82rem}
+.model-item:hover,.available-model-item:hover{background:#F9FAFB!important}
+.model-item-name{font-weight:600}
+.model-item-desc{color:var(--gw-muted);font-size:.72rem}
+.selected{background:var(--gw-soft)!important}
+.model-list-empty{padding:16px;text-align:center;color:var(--gw-muted);font-size:.8rem}
+.model-filter-input{width:100%;margin-bottom:8px}
+
+/* \u8868\u5355\u9875 */
+.form-card{padding:20px 22px}
+.form-card>.form-group,.form-card>.form-title{margin-left:0}
+.form-card .btn-submit{min-width:120px}
+.test-details{margin-top:16px;border:1px solid var(--gw-line);border-radius:10px;background:#fff}
+.test-details summary{padding:12px 14px;cursor:pointer;font-weight:700;color:var(--gw-ink)}
+.test-details[open] summary{border-bottom:1px solid var(--gw-line)}
+.test-details>div{padding:14px}
+.preview-content{background:#F9FAFB;border:1px solid var(--gw-line);border-radius:8px;padding:10px;font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.76rem;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto}
+
+/* \u9650\u5236 */
+.limits-card{padding:16px 18px}
+.limits-subtitle{margin:0 0 12px;color:var(--gw-muted);font-size:.82rem}
+.limits-table td,.limits-table th{vertical-align:middle}
+
+/* \u7EDF\u8BA1 */
+.overview-card--blue::before{background:#2563EB}
+.stats-section-card,.request-list-card{padding:16px 18px;margin-bottom:16px}
+.mini-bar-track{height:6px;background:#E9EEF7;border-radius:999px;overflow:hidden}
+.mini-bar-fill{height:100%;background:var(--gw-accent);border-radius:999px}
+.stat-mini-card{padding:12px 14px}
+.filter-shortcuts .btn{padding:5px 10px;font-size:.76rem}
+
+/* \u516C\u544A/\u5BC6\u7801/\u9690\u79C1 */
+.whitelist-info,.toggle-row{background:#F9FAFB;border:1px solid var(--gw-line);border-radius:9px;padding:12px 14px;margin-bottom:10px}
+.toggle-label{font-weight:700}
+.toggle-desc{color:var(--gw-muted);font-size:.78rem}
+.checkbox-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.checkbox-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--gw-line);border-radius:8px;background:#fff}
+.checkbox-label{font-size:.82rem}
+.check-icon{color:var(--gw-success)}
+
+@media (max-width:768px){
+  .actions-cell{justify-content:flex-end}
+  .model-selector{grid-template-columns:1fr}
+  .form-card{padding:16px}
+  .user-actions,.group-card-actions{justify-content:flex-start}
+}
+`;
+
   // web/src/views/layout.ts
   var MENU = [
     { href: "/admin/models", label: "\u6A21\u578B" },
@@ -182,7 +274,7 @@ tbody tr:hover{background:#FAFBFF}
     return `<nav class="topbar"><div class="topbar-inner"><a href="/admin/models" class="topbar-brand">LLM Gateway</a><ul class="topbar-nav">${MENU.map((m) => `<li><a href="${m.href}" class="${activePath === m.href ? "active" : ""}">${m.label}</a></li>`).join("")}</ul></div></nav>`;
   }
   function adminPage(title, activePath, body, extraStyle, version = "1.15.0", script = "") {
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(title)} - LLM Gateway</title><style>${extraStyle}</style><style>${consoleCSS}</style></head><body>${topbar(activePath)}<main class="main-content" style="padding: 2.5rem 2rem 4rem; max-width: 1280px; margin: 0 auto; animation: fadeUp 0.6s ease-out both;">${body}<div style="text-align:center;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-secondary)">v${version}</div></main>${script}</body></html>`;
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(title)} - LLM Gateway</title><style>${extraStyle}</style><style>${consoleCSS}</style><style>${pageCSS}</style></head><body>${topbar(activePath)}<main class="main-content" style="padding: 2.5rem 2rem 4rem; max-width: 1280px; margin: 0 auto; animation: fadeUp 0.6s ease-out both;">${body}<div style="text-align:center;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-secondary)">v${version}</div></main>${script}</body></html>`;
   }
 
   // web/src/views/models.ts
@@ -403,10 +495,10 @@ ${(s.details || []).length ? `<div class="stats-section-card"><h2 class="stats-s
 
   // web/src/views/login.ts
   function adminLoginPage(isSetup, error) {
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7BA1\u7406\u5458\u767B\u5F55 - LLM Gateway</title><style>${adminLoginCSS}</style><style>${consoleCSS}</style></head><body><div class="login-card"><h1 class="login-title">${isSetup ? "\u{1F510} \u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801" : "\u{1F510} \u7BA1\u7406\u5458\u767B\u5F55"}</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}${isSetup ? '<div class="alert alert-warning">\u9996\u6B21\u4F7F\u7528\u8BF7\u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801</div>' : ""}<form method="POST" action="/api/admin/login"><div class="form-group"><label class="form-label" for="password">\u5BC6\u7801</label><input class="form-input" type="password" id="password" name="password" placeholder="\u8BF7\u8F93\u5165\u5BC6\u7801" required></div><button type="submit" class="btn btn-primary">${isSetup ? "\u8BBE\u7F6E\u5BC6\u7801" : "\u767B\u5F55"}</button></form></div></body></html>`;
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7BA1\u7406\u5458\u767B\u5F55 - LLM Gateway</title><style>${adminLoginCSS}</style><style>${consoleCSS}</style><style>${pageCSS}</style></head><body><div class="login-card"><h1 class="login-title">${isSetup ? "\u{1F510} \u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801" : "\u{1F510} \u7BA1\u7406\u5458\u767B\u5F55"}</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}${isSetup ? '<div class="alert alert-warning">\u9996\u6B21\u4F7F\u7528\u8BF7\u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801</div>' : ""}<form method="POST" action="/api/admin/login"><div class="form-group"><label class="form-label" for="password">\u5BC6\u7801</label><input class="form-input" type="password" id="password" name="password" placeholder="\u8BF7\u8F93\u5165\u5BC6\u7801" required></div><button type="submit" class="btn btn-primary">${isSetup ? "\u8BBE\u7F6E\u5BC6\u7801" : "\u767B\u5F55"}</button></form></div></body></html>`;
   }
   function userLoginPage(error) {
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7528\u6237\u767B\u5F55 - LLM Gateway</title><style>${css11}</style><style>${consoleCSS}</style></head><body><div class="login-card"><h1>\u7528\u6237\u767B\u5F55</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}<form method="POST" action="/api/user/login"><div class="form-group"><label for="apikey">API Key</label><input type="password" id="apikey" name="apikey" placeholder="\u8BF7\u8F93\u5165 API Key" required></div><button type="submit" class="btn btn-primary">\u767B\u5F55</button></form></div></body></html>`;
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7528\u6237\u767B\u5F55 - LLM Gateway</title><style>${css11}</style><style>${consoleCSS}</style><style>${pageCSS}</style></head><body><div class="login-card"><h1>\u7528\u6237\u767B\u5F55</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}<form method="POST" action="/api/user/login"><div class="form-group"><label for="apikey">API Key</label><input type="password" id="apikey" name="apikey" placeholder="\u8BF7\u8F93\u5165 API Key" required></div><button type="submit" class="btn btn-primary">\u767B\u5F55</button></form></div></body></html>`;
   }
 
   // web/src/styles/user_home.ts
@@ -831,7 +923,7 @@ ${(s.details || []).length ? `<div class="stats-section-card"><h2 class="stats-s
   // web/src/views/userHome.ts
   function userHomePage(p) {
     const cfg = JSON.stringify({ openai: { baseURL: location.origin + "/v1", apiKey: "sk-your-api-key" } }, null, 2);
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>LLM Gateway - \u914D\u7F6E\u4FE1\u606F</title><style>${css12}</style><style>${consoleCSS}</style></head><body><div class="container-fluid"><div class="navbar"><a class="navbar-brand" href="/user/main">LLM Gateway</a><div class="navbar-menu"><a class="navbar-link" href="/user/stats">\u7EDF\u8BA1</a></div></div><div class="container"><div class="hero"><h1>\u{1F680} LLM Gateway</h1><p class="hero-subtitle">\u7EDF\u4E00\u7684\u5927\u6A21\u578B API \u7F51\u5173\uFF0C\u517C\u5BB9 OpenAI / Anthropic / Responses \u683C\u5F0F</p><a href="/user/stats" style="color:var(--primary);text-decoration:none;margin-right:0.75rem;font-size:0.8rem">\u7EDF\u8BA1</a></div>
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>LLM Gateway - \u914D\u7F6E\u4FE1\u606F</title><style>${css12}</style><style>${consoleCSS}</style><style>${pageCSS}</style></head><body><div class="container-fluid"><div class="navbar"><a class="navbar-brand" href="/user/main">LLM Gateway</a><div class="navbar-menu"><a class="navbar-link" href="/user/stats">\u7EDF\u8BA1</a></div></div><div class="container"><div class="hero"><h1>\u{1F680} LLM Gateway</h1><p class="hero-subtitle">\u7EDF\u4E00\u7684\u5927\u6A21\u578B API \u7F51\u5173\uFF0C\u517C\u5BB9 OpenAI / Anthropic / Responses \u683C\u5F0F</p><a href="/user/stats" style="color:var(--primary);text-decoration:none;margin-right:0.75rem;font-size:0.8rem">\u7EDF\u8BA1</a></div>
 ${p.announcement ? `<div class="announcement-banner">${p.announcement}</div>` : ""}
 ${p.userName ? `<p>\u6B22\u8FCE\uFF0C${escapeHtml(p.userName)}</p>` : ""}
 <div class="card"><div class="card-header"><span class="card-icon">\u{1F4CB}</span><h2>JSON \u914D\u7F6E</h2></div><div class="input-wrapper"><pre class="input-value" id="json-config">${escapeHtml(cfg)}</pre><button id="copy-json" class="copy-btn">\u590D\u5236</button></div></div>
@@ -845,7 +937,7 @@ ${p.modelGroups.length ? `<div class="model-group-toggle"><div class="toggle-opt
   // web/src/views/userStats.ts
   function userStatsPage(s) {
     const successPct = s.totalRequests ? s.successfulRequests / s.totalRequests * 100 : 0;
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u4F7F\u7528\u7EDF\u8BA1 - LLM Gateway</title><style>:root{--primary:#6366f1;--green-gradient:linear-gradient(135deg,#10b981,#059669);--border:#e5e7eb}body{font-family:system-ui,sans-serif;background:#f8fafc;padding:2rem;color:#1f2937}.stats-page-title{font-size:1.6rem}.stats-page-subtitle{color:#6b7280}.filter-bar{display:flex;gap:1rem;margin:1.5rem 0}.filter-group{display:flex;flex-direction:column;gap:.25rem}.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.overview-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:1.2rem}.overview-card--blue{border-top:3px solid #3b82f6}.overview-card--green{border-top:3px solid #10b981}.overview-card--orange{border-top:3px solid #f59e0b}.overview-card--purple{border-top:3px solid #8b5cf6}.overview-card-value{font-size:1.6rem;font-weight:700}</style><style>${consoleCSS}</style></head><body><h1 class="stats-page-title">\u{1F4CA} \u4F7F\u7528\u7EDF\u8BA1 \u2014 ${escapeHtml(s.userName)}</h1><p class="stats-page-subtitle">\u67E5\u770B API \u4F7F\u7528\u60C5\u51B5\u4E0E\u7EDF\u8BA1\u6570\u636E</p><div class="filter-bar"><form method="get" action="/user/stats" class="filter-form"><div class="filter-group"><label for="start">\u5F00\u59CB\u65E5\u671F</label><input type="date" id="start" name="startDate" value="${s.start}"></div><div class="filter-group"><label for="end">\u7ED3\u675F\u65E5\u671F</label><input type="date" id="end" name="endDate" value="${s.end}"></div><button type="submit" class="filter-submit">\u67E5\u8BE2</button></form></div>
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u4F7F\u7528\u7EDF\u8BA1 - LLM Gateway</title><style>:root{--primary:#6366f1;--green-gradient:linear-gradient(135deg,#10b981,#059669);--border:#e5e7eb}body{font-family:system-ui,sans-serif;background:#f8fafc;padding:2rem;color:#1f2937}.stats-page-title{font-size:1.6rem}.stats-page-subtitle{color:#6b7280}.filter-bar{display:flex;gap:1rem;margin:1.5rem 0}.filter-group{display:flex;flex-direction:column;gap:.25rem}.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.overview-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:1.2rem}.overview-card--blue{border-top:3px solid #3b82f6}.overview-card--green{border-top:3px solid #10b981}.overview-card--orange{border-top:3px solid #f59e0b}.overview-card--purple{border-top:3px solid #8b5cf6}.overview-card-value{font-size:1.6rem;font-weight:700}</style><style>${consoleCSS}</style><style>${pageCSS}</style></head><body><h1 class="stats-page-title">\u{1F4CA} \u4F7F\u7528\u7EDF\u8BA1 \u2014 ${escapeHtml(s.userName)}</h1><p class="stats-page-subtitle">\u67E5\u770B API \u4F7F\u7528\u60C5\u51B5\u4E0E\u7EDF\u8BA1\u6570\u636E</p><div class="filter-bar"><form method="get" action="/user/stats" class="filter-form"><div class="filter-group"><label for="start">\u5F00\u59CB\u65E5\u671F</label><input type="date" id="start" name="startDate" value="${s.start}"></div><div class="filter-group"><label for="end">\u7ED3\u675F\u65E5\u671F</label><input type="date" id="end" name="endDate" value="${s.end}"></div><button type="submit" class="filter-submit">\u67E5\u8BE2</button></form></div>
 ${s.totalRequests ? `<div class="overview-grid"><div class="overview-card overview-card--blue"><div class="overview-card-label">\u603B\u8BF7\u6C42\u6570</div><div class="overview-card-value">${formatNumber(s.totalRequests)}</div><div class="overview-card-sub">\u6240\u6709 API \u8BF7\u6C42</div></div><div class="overview-card overview-card--green"><div class="overview-card-label">\u6210\u529F\u7387</div><div class="overview-card-value">${successPct.toFixed(1)}%</div><div class="overview-card-sub">${formatNumber(s.successfulRequests)} / ${formatNumber(s.totalRequests)}</div></div><div class="overview-card overview-card--orange"><div class="overview-card-label">\u603B Token</div><div class="overview-card-value">${formatNumber(s.totalTokens)}</div><div class="overview-card-sub">\u8F93\u5165 + \u8F93\u51FA</div></div><div class="overview-card overview-card--purple"><div class="overview-card-label">\u5E73\u5747\u5EF6\u8FDF</div><div class="overview-card-value">${formatDuration(s.avgDuration)}</div><div class="overview-card-sub">\u6BCF\u6B21\u8BF7\u6C42\u8017\u65F6</div></div></div><div class="token-card"><h2 class="token-card-title">\u{1F4C8} Token \u7528\u91CF\u660E\u7EC6</h2><table><thead><tr><th>\u6A21\u578B</th><th>\u8BF7\u6C42\u6570</th><th>Token</th></tr></thead><tbody>${Object.entries(s.byModel).map(([m, v]) => `<tr><td>${escapeHtml(m)}</td><td>${v.requests}</td><td>${formatNumber(v.totalTokens)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty-state"><div class="empty-state-icon">\u{1F4ED}</div><div class="empty-state-text">\u6682\u65E0\u7EDF\u8BA1\u6570\u636E</div></div>'}</body></html>`;
   }
 

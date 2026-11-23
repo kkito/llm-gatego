@@ -158,3 +158,13 @@ describe('console shell redesign', () => {
     expect(h).toContain('min-height:44px')
   })
 })
+
+describe('per-page styling layer', () => {
+  it('injects page-specific refinements for every admin page', () => {
+    const h = adminPage('x', '/admin/models', '', '')
+    expect(h).toContain('.models-table .model-name-cell')
+    expect(h).toContain('.user-card-header')
+    expect(h).toContain('.key-card')
+    expect(h).toContain('.model-selector')
+  })
+})
