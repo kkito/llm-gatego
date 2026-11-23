@@ -8,6 +8,7 @@ import (
 )
 
 func TestWatcherDetectsExternalChange(t *testing.T) {
+	ResetSelfWriteForTest()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 	if err := os.WriteFile(path, []byte(`{"models":[]}`), 0600); err != nil { t.Fatal(err) }
@@ -29,6 +30,7 @@ func TestWatcherDetectsExternalChange(t *testing.T) {
 }
 
 func TestWatcherIgnoresSelfWrite(t *testing.T) {
+	ResetSelfWriteForTest()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 	if err := os.WriteFile(path, []byte(`{"models":[]}`), 0600); err != nil { t.Fatal(err) }

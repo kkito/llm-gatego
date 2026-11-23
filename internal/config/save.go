@@ -19,6 +19,8 @@ func nowMillis() int64 {
 
 func LastSelfWrite() int64 { return lastSelfWrite.Load() }
 
+func ResetSelfWriteForTest() { lastSelfWrite.Store(0) }
+
 func SaveConfig(cfg *ProxyConfig, path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return err
