@@ -27,15 +27,22 @@ func newInterceptorManager() *interceptor.Manager {
 }
 
 func proxyDeps(cfg *config.ProxyConfig, ctx config.ConfigContext, timeoutMS int) proxy.Dependencies {
+	getConfig := func() *config.ProxyConfig {
+		current, err := config.LoadFullConfig(ctx.ConfigPath)
+		if err != nil {
+			return cfg
+		}
+		return current
+	}
 	return proxy.Dependencies{
-		ConfigGetter: func() *config.ProxyConfig { return cfg },
+		ConfigGetter: getConfig,
 		Logger:       logger.NewLogger(ctx.DetailLogDir),
 		DetailLogger: logger.NewDetailLogger(ctx.DetailLogDir, false),
 		Timeout:      time.Duration(timeoutMS) * time.Millisecond,
 		LogDir:       ctx.LogDir,
 		Interceptors: newInterceptorManager(),
 		RequestUser: func(r *http.Request) *interceptor.CurrentUser {
-			u := auth.GetCurrentUser(r, cfg)
+			u := auth.GetCurrentUser(r, getConfig())
 			if u == nil {
 				return nil
 			}
