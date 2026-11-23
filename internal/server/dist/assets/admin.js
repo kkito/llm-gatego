@@ -422,6 +422,10 @@ ${panel("\u53EF\u7528\u6A21\u578B", `${p.models.length} \u4E2A\u6A21\u578B / ${p
   var q = (name) => new URLSearchParams(location.search).get(name) || "";
   var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
   var renderers = {
+    "/": () => {
+      location.replace("/admin/models");
+      return "";
+    },
     "/admin/models": async () => modelsPage((await api("/api/admin/models")).data || []),
     "/admin/model-groups": async () => groupsPage((await api("/api/admin/model-groups")).data || []),
     "/admin/users": async () => usersPage((await api("/api/admin/users")).data || []),
@@ -506,12 +510,18 @@ ${panel("\u53EF\u7528\u6A21\u578B", `${p.models.length} \u4E2A\u6A21\u578B / ${p
       return modelsPage([], e.message, ctx.version);
     }
   }
-  if (typeof document !== "undefined" && document.readyState !== "loading") {
+  function bootstrap() {
     const root = document.getElementById("app");
-    if (root) renderAdmin({ path: location.pathname, version: "1.15.0" }).then((html) => {
+    if (!root) return;
+    renderAdmin({ path: location.pathname, version: "1.15.0" }).then((html) => {
       document.open();
       document.write(html);
       document.close();
     });
   }
+  function startWhenReady(doc, start) {
+    if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", start, { once: true });
+    else start();
+  }
+  if (typeof document !== "undefined") startWhenReady(document, bootstrap);
 })();

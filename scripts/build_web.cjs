@@ -2,7 +2,6 @@ const esbuild = require('esbuild');
 const fs = require('fs');
 
 const entries = [
-  ['web/src/app.ts', 'web/dist/assets/app.js'],
   ['web/src/admin.ts', 'web/dist/assets/admin.js'],
 ];
 for (const [entry, out] of entries) {
@@ -10,7 +9,6 @@ for (const [entry, out] of entries) {
 }
 fs.mkdirSync('web/dist', { recursive: true });
 fs.copyFileSync('web/index.html', 'web/dist/index.html');
-if (fs.existsSync('web/style.css')) fs.copyFileSync('web/style.css', 'web/dist/style.css');
 fs.mkdirSync('internal/server/dist/assets', { recursive: true });
 for (const name of fs.readdirSync('web/dist')) {
   const src = 'web/dist/' + name;

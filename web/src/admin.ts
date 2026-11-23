@@ -22,6 +22,7 @@ const q = (name: string) => new URLSearchParams(location.search).get(name) || ''
 const today = () => new Date().toISOString().slice(0, 10)
 
 export const renderers: Record<string, PageRenderer> = {
+  '/': () => { location.replace('/admin/models'); return '' },
   '/admin/models': async () => modelsPage((await api<any[]>('/api/admin/models')).data || []),
   '/admin/model-groups': async () => groupsPage((await api<any[]>('/api/admin/model-groups')).data || []),
   '/admin/users': async () => usersPage((await api<any[]>('/api/admin/users')).data || []),
@@ -91,9 +92,17 @@ export async function renderAdmin(ctx: PageContext): Promise<string> {
   try { return await fn(ctx) } catch (e) { return modelsPage([], (e as Error).message, ctx.version) }
 }
 
-if (typeof document !== 'undefined' && (document as any).readyState !== 'loading') {
+export function bootstrap(): void {
   const root = document.getElementById('app')
-  if (root) renderAdmin({ path: location.pathname, version: '1.15.0' }).then(html => {
+  if (!root) return
+  renderAdmin({ path: location.pathname, version: '1.15.0' }).then(html => {
     document.open(); document.write(html); document.close()
   })
 }
+
+export function startWhenReady(doc: Document, start: () => void): void {
+  if (doc.readyState === 'loading') doc.addEventListener('DOMContentLoaded', start, { once: true })
+  else start()
+}
+
+if (typeof document !== 'undefined') startWhenReady(document, bootstrap)
