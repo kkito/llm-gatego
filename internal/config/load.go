@@ -126,8 +126,8 @@ func validateModelGroups(cfg *ProxyConfig) error {
 			return fmt.Errorf("duplicate model group name: %q", g.Name)
 		}
 		groupNames[g.Name] = true
-		if len(g.Models) == 0 {
-			return fmt.Errorf("model group %q models array cannot be empty", g.Name)
+		if g.Models == nil {
+			cfg.ModelGroups[i].Models = []string{}
 		}
 		for _, mn := range g.Models {
 			if !names[mn] {

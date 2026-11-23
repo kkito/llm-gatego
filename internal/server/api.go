@@ -297,6 +297,9 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
+		if in.Models == nil {
+			in.Models = []string{}
+		}
 		cfg.ModelGroups = append(cfg.ModelGroups, in)
 		if err := d.save(cfg); err != nil {
 			fail(w, 500, err.Error())
