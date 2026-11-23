@@ -47,7 +47,7 @@ export const renderers: Record<string, PageRenderer> = {
   },
   '/user/stats': async () => {
     const d = (await api<any>('/api/user/stats' + location.search)).data || {}
-    return userStatsPage({ userName: q('userName') || 'User', start: q('start') || today(), end: q('end') || today(), totalRequests: d.total || 0, successfulRequests: d.total || 0, totalTokens: 0, avgDuration: 0, byModel: {}, byDate: {} })
+    return userStatsPage({ userName: q('userName') || 'User', start: q('start') || today(), end: q('end') || today(), totalRequests: d.total || 0, successfulRequests: d.successful || 0, totalTokens: d.totalTokens || 0, avgDuration: d.avgDuration || 0, byModel: d.byModel || {}, byDate: d.byDate || {} })
   },
 }
 

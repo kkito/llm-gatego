@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -518,17 +517,50 @@ func registerUserPagesAPI(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		byModel := map[string]int{}
+		start := r.URL.Query().Get("start")
+		end := r.URL.Query().Get("end")
+		modelFilter := r.URL.Query().Get("model")
+		userName := r.URL.Query().Get("userName")
+		type modelAgg struct { Requests, Successful, Failed int; TotalTokens, InputTokens, OutputTokens, CachedTokens int64; AvgDuration float64 }
+		byModel := map[string]*modelAgg{}
+		byDate := map[string]int{}
+		byHour := map[string]int{}
+		var total, successful, failed int
+		var totalTokens, inputTokens, outputTokens, cachedTokens int64
+		var durationSum float64
 		for _, row := range rows {
-			byModel[row.CustomModel]++
+			ts := row.Timestamp
+			if start != "" && ts < start { continue }
+			if end != "" && ts > end+"T23:59:59.999Z" { continue }
+			if modelFilter != "" && row.CustomModel != modelFilter { continue }
+			if userName != "" && row.UserName != userName { continue }
+			total++
+			if row.StatusCode >= 200 && row.StatusCode < 300 { successful++ } else if row.StatusCode >= 400 { failed++ }
+			totalTokens += int64(ptrInt(row.TotalTokens))
+			inputTokens += int64(ptrInt(row.PromptTokens))
+			outputTokens += int64(ptrInt(row.CompletionTokens))
+			cachedTokens += int64(ptrInt(row.CachedTokens))
+			durationSum += float64(row.DurationMs)
+			if len(ts) >= 10 { byDate[ts[:10]]++ }
+			if len(ts) >= 13 { byHour[ts[11:13]]++ }
+			a := byModel[row.CustomModel]
+			if a == nil { a = &modelAgg{}; byModel[row.CustomModel] = a }
+			a.Requests++
+			if row.StatusCode >= 200 && row.StatusCode < 300 { a.Successful++ } else if row.StatusCode >= 400 { a.Failed++ }
+			a.TotalTokens += int64(ptrInt(row.TotalTokens))
+			a.InputTokens += int64(ptrInt(row.PromptTokens))
+			a.OutputTokens += int64(ptrInt(row.CompletionTokens))
+			a.CachedTokens += int64(ptrInt(row.CachedTokens))
+			a.AvgDuration += float64(row.DurationMs)
 		}
-		keys := make([]string, 0, len(byModel))
-		for k := range byModel {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		_ = keys
-		okJSON(w, map[string]any{"total": len(rows), "byModel": byModel})
+		for _, a := range byModel { if a.Requests > 0 { a.AvgDuration /= float64(a.Requests) } }
+		var avgDuration float64
+		if total > 0 { avgDuration = durationSum / float64(total) }
+		okJSON(w, map[string]any{
+			"total": total, "successful": successful, "failed": failed,
+			"totalTokens": totalTokens, "inputTokens": inputTokens, "outputTokens": outputTokens, "cachedTokens": cachedTokens,
+			"avgDuration": avgDuration, "byModel": byModel, "byDate": byDate, "byHour": byHour,
+		})
 	})
 }
 
