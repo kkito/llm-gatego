@@ -89,6 +89,80 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 		}
 		okJSON(w, in)
 	})
+	mux.HandleFunc("POST /api/admin/models/edit/{model}", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			CustomModel      string         `json:"customModel"`
+			RealModel        string         `json:"realModel"`
+			Provider         string         `json:"provider"`
+			BaseURL          string         `json:"baseUrl"`
+			Desc             string         `json:"desc"`
+			APIKey           string         `json:"apiKey"`
+			APIKeySource     string         `json:"apiKeySource"`
+			Proxy            string         `json:"proxy"`
+			MaxContextLength int            `json:"maxContextLength"`
+			DefaultParams    map[string]any `json:"defaultParams"`
+		}
+		if !readJSON(w, r, &in) {
+			return
+		}
+		oldName := r.PathValue("model")
+		cfg, err := d.load()
+		if err != nil {
+			fail(w, 500, err.Error())
+			return
+		}
+		idx := -1
+		for i, m := range cfg.Models {
+			if m.CustomModel == oldName {
+				idx = i
+				break
+			}
+		}
+		if idx < 0 {
+			fail(w, 404, "model not found")
+			return
+		}
+		if in.CustomModel == "" || in.RealModel == "" || in.BaseURL == "" || in.Provider == "" {
+			fail(w, 400, "请填写所有必填字段")
+			return
+		}
+		if in.CustomModel != oldName {
+			for _, m := range cfg.Models {
+				if m.CustomModel == in.CustomModel {
+					fail(w, 400, "model already exists")
+					return
+				}
+			}
+		}
+		finalKey := cfg.Models[idx].APIKey
+		if in.APIKeySource != "" && in.APIKeySource != "manual" {
+			for _, k := range cfg.ApiKeys {
+				if k.ID == in.APIKeySource {
+					finalKey = "$$" + k.Name + "$$"
+					break
+				}
+			}
+		} else if in.APIKey != "" {
+			finalKey = in.APIKey
+		}
+		m := &cfg.Models[idx]
+		m.CustomModel = in.CustomModel
+		m.RealModel = in.RealModel
+		m.BaseURL = in.BaseURL
+		m.Provider = config.ProviderType(in.Provider)
+		m.Desc = in.Desc
+		m.APIKey = finalKey
+		m.Proxy = strings.TrimSpace(in.Proxy)
+		m.MaxContextLength = in.MaxContextLength
+		if len(in.DefaultParams) > 0 {
+			m.DefaultParams = in.DefaultParams
+		}
+		if err := d.save(cfg); err != nil {
+			fail(w, 500, err.Error())
+			return
+		}
+		okJSON(w, *m)
+	})
 	mux.HandleFunc("POST /api/admin/models/delete/{model}", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
 		if err != nil {

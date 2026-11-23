@@ -132,3 +132,30 @@ func TestLegacyFormBridgeConvertsURLEncodedBody(t *testing.T) {
 		t.Fatalf("api keys = %+v", d.Get().ApiKeys)
 	}
 }
+
+func TestModelEditAPIKeySourceAndFallback(t *testing.T) {
+	d := extraDeps(t)
+	mux := http.NewServeMux()
+	RegisterAdminAPIs(mux, d)
+	cfg := d.Get()
+	var key config.ApiKey
+	cfg.ApiKeys, key, _ = config.AddAPIKey(cfg.ApiKeys, "ref", "sk-ref")
+	b, _ := json.Marshal(cfg)
+	os.WriteFile(filepath.Join(d.ConfigDir, "config.json"), b, 0644)
+	// api key source reference
+	w := callExtra(t, mux, "POST", "/api/admin/models/edit/m1", `{"customModel":"m1","realModel":"r1","baseUrl":"http://u","provider":"openai","apiKeySource":"`+key.ID+`"}`)
+	if w.Code != http.StatusOK {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if d.Get().Models[0].APIKey != "$$ref$$" {
+		t.Fatal(d.Get().Models[0].APIKey)
+	}
+	// fallback keeps old key when no manual key
+	w = callExtra(t, mux, "POST", "/api/admin/models/edit/m1", `{"customModel":"m1","realModel":"r1","baseUrl":"http://u","provider":"openai","apiKey":""}`)
+	if w.Code != http.StatusOK {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if d.Get().Models[0].APIKey != "$$ref$$" {
+		t.Fatal(d.Get().Models[0].APIKey)
+	}
+}

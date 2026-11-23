@@ -29,7 +29,7 @@ export const renderers: Record<string, PageRenderer> = {
   '/admin/password': () => passwordPage(true),
   '/admin/privacy': async () => privacyPage((await api<any>('/api/admin/privacy')).data?.settings || { enabled: false, stripUserField: false, sanitizeFilePaths: false, whitelistFilter: false, pathPlaceholder: 'USER' }),
   '/admin/announcement': async () => announcementPage((await api<any>('/api/admin/announcement')).data?.content || ''),
-  '/admin/models/new': () => modelFormPage(undefined, []),
+  '/admin/models/new': async () => modelFormPage(undefined, (await api<any[]>('/api/admin/api-keys')).data || []),
   '/admin/model-groups/new': async () => groupFormPage(undefined, (await api<any[]>('/api/admin/models')).data || []),
   '/admin/users/new': async () => userFormPage(undefined, (await api<any[]>('/api/admin/models')).data || []),
   '/admin/stats': async () => {
@@ -62,7 +62,10 @@ export async function renderAdmin(ctx: PageContext): Promise<string> {
   let m: RegExpMatchArray | null
   if ((m = path.match(/^\/admin\/models\/edit\/(.+)$/))) {
     const models = (await api<any[]>('/api/admin/models')).data || []
-    return modelFormPage(models.find(x => x.customModel === decodeURIComponent(m![1])), [])
+    const model = models.find(x => x.customModel === decodeURIComponent(m![1]))
+    const keys = (await api<any[]>('/api/admin/api-keys')).data || []
+    const ref = model?.apiKey?.startsWith('$$') && model.apiKey.endsWith('$$') ? model.apiKey.slice(2, -2) : ''
+    return modelFormPage(model, keys, undefined, '1.15.0', ref)
   }
   if ((m = path.match(/^\/admin\/models\/([^/]+)\/limits$/))) return modelLimitsPage(decodeURIComponent(m[1]), (await api<any[]>(`/api/admin/models/${m[1]}/limits`)).data || [])
   if ((m = path.match(/^\/admin\/model-groups\/edit\/(.+)$/))) {
