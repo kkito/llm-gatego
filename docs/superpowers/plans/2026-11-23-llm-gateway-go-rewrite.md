@@ -941,6 +941,10 @@ git add internal/provider && git commit -m "feat(provider): interfaces, URL buil
 
 ## Task 7: 格式转换核心（canonical + router + chat/anthropic/responses）
 
+> 源 converter 测试共 3,746 行 / 202 case（anthropic 2,613 行 136 case；responses 692 行 39 case；canonical 51 行 7 case；其余 390 行）。为保证语义级迁移，拆成 7a/7b/7c 三个子任务，各自独立测试+提交。
+
+### Task 7a: canonical 类型 + router + chat 透传 + SSE parser + params
+
 **Files:**
 - Create: `internal/converter/{canonical,types,router,adapter_chat,adapter_anthropic,adapter_responses,sse_parser,params}.go` + `_test.go`（含从源 `tests/converters/` 迁移的 19 个测试文件的语义）
 
@@ -969,9 +973,9 @@ func TestResolveConverterChainPassthrough(t *testing.T) {
 }
 ```
 
-迁移源测试到 `internal/converter/anthropic_convert_test.go`、`response_convert_test.go`、`sse_parser_test.go`、`stream_test.go`：逐条复制 1382 个 case 中 converter 部分的语义（thinking/tool_use/multimodal/finish_reason/SSE 分片边界/flush 收尾等）。
+迁移源 `tests/converters/router.test.ts`、`sse-response-conversion.test.ts`、`canonical/`、`multimodal.test.ts` 的语义到 `internal/converter/{router,sse_parser,params,canonical}_test.go`。
 
-- [ ] **Step 2: 实现 canonical 类型、adapters、router、SSE parser、deepMerge。**
+- [ ] **Step 2: 实现 canonical 类型、chat adapter、router、SSE parser、deepMerge。**
 
 `params.go`：`MergeModelParams(defaults map[string]any, body map[string]any) map[string]any` —— 深度递归合并，数组整体替换，用户参数优先（对齐 `params-merger.ts`）。
 
@@ -979,7 +983,31 @@ func TestResolveConverterChainPassthrough(t *testing.T) {
 
 ```bash
 go test ./internal/converter/... -race -v
-git add internal/converter && git commit -m "feat(converter): canonical, adapters, SSE parser, stream converters"
+git add internal/converter && git commit -m "feat(converter): canonical, router, SSE parser, params"
+```
+
+### Task 7b: Anthropic 转换器（136 case / 2,613 行）
+
+**Files:** Create `internal/converter/anthropic/{request,response,stream,shared,finish_reason}_test.go`，对应实现文件同目录。
+
+逐条迁移源 `tests/converters/anthropic/` 的 136 个 case：thinking/tool_use/input_json_delta/multimodal/finish_reason 映射/SSE 分片边界/flush 收尾。
+
+- [ ] **Step 1: 写失败测试 → Step 2: 实现 → Step 3: `go test ./internal/converter/anthropic/... -race -v` → 提交**
+
+```bash
+git add internal/converter/anthropic && git commit -m "feat(converter): anthropic request/response/stream converters + 136 migrated cases"
+```
+
+### Task 7c: Responses 转换器（39 case / 692 行）
+
+**Files:** Create `internal/converter/responses/{request,response,stream}_test.go`，对应实现文件同目录。
+
+逐条迁移源 `tests/converters/responses/` 的 39 个 case，`response-api` 别名归一化。
+
+- [ ] **Step 1: 写失败测试 → Step 2: 实现 → Step 3: `go test ./internal/converter/responses/... -race -v` → 提交**
+
+```bash
+git add internal/converter/responses && git commit -m "feat(converter): responses converters + 39 migrated cases"
 ```
 
 ---
