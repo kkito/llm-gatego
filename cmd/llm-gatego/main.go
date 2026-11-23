@@ -133,6 +133,7 @@ func startCommand(args []string, out io.Writer, daemon bool) error {
 		return err
 	}
 	deps := proxyDeps(cfg, ctx, o.timeout)
+	deps.RequestLogger = store.GetRequestLogger(dm)
 	h := server.New(cfg, deps, ctx, server.Options{Debug: o.debug})
 	if o.daemon {
 		exe, err := os.Executable()

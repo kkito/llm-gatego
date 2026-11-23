@@ -30,7 +30,8 @@ type Dependencies struct {
 	LogDir       string
 	Interceptors *interceptor.Manager
 	// RequestUser, when set, resolves the authenticated user for interceptor context.
-	RequestUser func(*http.Request) *interceptor.CurrentUser
+	RequestUser   func(*http.Request) *interceptor.CurrentUser
+	RequestLogger *store.RequestLogger
 }
 
 type Handler struct{ deps Dependencies }
@@ -86,14 +87,42 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var lastStatus int
 	var lastBody map[string]any
 	var lastErr error
-	var realModel, groupName string
+	var realModel, groupName, lastProvider string
+	var currentUser *interceptor.CurrentUser
+	logRequest := func(status int, errMessage, errType string) {
+		if h.deps.RequestLogger == nil {
+			return
+		}
+		entry := store.RequestLogEntry{
+			RequestID: id, Timestamp: time.Now().UTC().Format(time.RFC3339), CreatedAt: time.Now().UnixMilli(),
+			ClientIP: ctxClientIP, CustomModel: model, RealModel: realModel, Provider: lastProvider,
+			ModelGroup: groupName, ActualModel: realModel, Endpoint: r.URL.Path, StatusCode: status,
+			DurationMs: time.Since(start).Milliseconds(), IsStreaming: stream,
+			ErrorMessage: errMessage, ErrorType: errType,
+		}
+		if currentUser != nil {
+			entry.UserName = currentUser.Name
+		}
+		if usage := asMap(lastBody["usage"]); usage != nil {
+			entry.PromptTokens = intPtr(usage["prompt_tokens"])
+			entry.CompletionTokens = intPtr(usage["completion_tokens"])
+			entry.TotalTokens = intPtr(usage["total_tokens"])
+			entry.CachedTokens = intPtr(usage["cached_tokens"])
+		}
+		if lastBody != nil {
+			if b, err := json.Marshal(lastBody); err == nil {
+				entry.ResponseMetadata = string(b)
+			}
+		}
+		h.deps.RequestLogger.Log(entry)
+	}
 	for _, pc := range cfgs {
-		var currentUser *interceptor.CurrentUser
 		if h.deps.RequestUser != nil {
 			if u := h.deps.RequestUser(r); u != nil {
 				currentUser = &interceptor.CurrentUser{Name: u.Name, APIKey: u.APIKey, AllowedModels: u.AllowedModels}
 			}
 		}
+		lastProvider = string(pc.Provider)
 		lastStatus, lastBody, lastErr, realModel, groupName = h.attempt(w, r, cfg, &pc, body, source, endpoint, stream, id, ctxClientIP, currentUser)
 		if lastErr != nil || lastStatus == 429 {
 			continue
@@ -103,16 +132,33 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if lastStatus == 429 {
+		logRequest(429, "rate limit exceeded", "rate_limit")
 		writeError(w, 429, "rate limit exceeded")
 		return
 	}
 	if lastErr != nil {
+		logRequest(502, lastErr.Error(), "upstream_error")
 		writeError(w, 502, lastErr.Error())
 		return
 	}
-	_ = realModel
-	_ = groupName
-	_ = start
+	logRequest(lastStatus, "", "")
+}
+
+func intPtr(v any) *int {
+	switch n := v.(type) {
+	case float64:
+		i := int(n)
+		return &i
+	case int:
+		i := n
+		return &i
+	case json.Number:
+		i, _ := n.Int64()
+		v := int(i)
+		return &v
+	default:
+		return nil
+	}
 }
 func mergeDefaultParams(body map[string]any, defaults map[string]any) map[string]any {
 	if len(defaults) == 0 {
