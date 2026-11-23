@@ -259,3 +259,22 @@ func TestE2EUserEditFormAllowedModels(t *testing.T) {
 		t.Fatalf("%+v", cfg.UserApiKeys[0])
 	}
 }
+
+func TestE2EModelCreateFormSavedKeySelection(t *testing.T) {
+	cfg := &config.ProxyConfig{Models: []config.ProviderConfig{}}
+	cfg.ApiKeys, _, _ = config.AddAPIKey(cfg.ApiKeys, "opencode", "sk-opencode")
+	mux, path := newFullServer(t, cfg)
+	keyID := load(t, path).ApiKeys[0].ID
+	v := url.Values{
+		"customModel": {"m1"}, "realModel": {"r1"}, "provider": {"openai"},
+		"baseUrl": {"http://up"}, "apiKeySource": {keyID},
+	}
+	w := postForm(t, mux, "/admin/models", v)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	got := load(t, path).Models[0].APIKey
+	if got != "$$opencode$$" {
+		t.Fatalf("apiKey=%q", got)
+	}
+}

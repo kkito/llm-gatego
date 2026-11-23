@@ -67,7 +67,10 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 		okJSON(w, cfg.Models)
 	})
 	mux.HandleFunc("POST /api/admin/models", func(w http.ResponseWriter, r *http.Request) {
-		var in config.ProviderConfig
+		var in struct {
+			config.ProviderConfig
+			APIKeySource string `json:"apiKeySource"`
+		}
 		if !readJSON(w, r, &in) {
 			return
 		}
@@ -82,12 +85,25 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 				return
 			}
 		}
-		cfg.Models = append(cfg.Models, in)
+		m := in.ProviderConfig
+		if in.APIKeySource != "" && in.APIKeySource != "manual" {
+			for _, k := range cfg.ApiKeys {
+				if k.ID == in.APIKeySource {
+					m.APIKey = "$$" + k.Name + "$$"
+					break
+				}
+			}
+		}
+		if strings.TrimSpace(m.APIKey) == "" {
+			fail(w, 400, "请填写 API Key 或选择已保存的 API Key")
+			return
+		}
+		cfg.Models = append(cfg.Models, m)
 		if err := d.save(cfg); err != nil {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, in)
+		okJSON(w, m)
 	})
 	mux.HandleFunc("POST /api/admin/models/edit/{model}", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {

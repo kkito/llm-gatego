@@ -159,3 +159,21 @@ func TestModelEditAPIKeySourceAndFallback(t *testing.T) {
 		t.Fatal(d.Get().Models[0].APIKey)
 	}
 }
+
+func TestModelCreateAPIKeySourceReference(t *testing.T) {
+	d := extraDeps(t)
+	mux := http.NewServeMux()
+	RegisterAdminAPIs(mux, d)
+	cfg := d.Get()
+	var key config.ApiKey
+	cfg.ApiKeys, key, _ = config.AddAPIKey(cfg.ApiKeys, "opencode", "sk-opencode")
+	b, _ := json.Marshal(cfg)
+	os.WriteFile(filepath.Join(d.ConfigDir, "config.json"), b, 0644)
+	w := callExtra(t, mux, "POST", "/api/admin/models", `{"customModel":"m3","realModel":"r1","baseUrl":"http://u","provider":"openai","apiKeySource":"`+key.ID+`"}`)
+	if w.Code != http.StatusOK {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if got := d.Get().Models[2].APIKey; got != "$$opencode$$" {
+		t.Fatalf("apiKey=%q", got)
+	}
+}
