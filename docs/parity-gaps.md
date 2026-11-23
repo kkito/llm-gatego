@@ -46,3 +46,5 @@
 - [ ] Remaining P6: admin detail-log polling endpoint, exact timezone/cookie handling, complete view/e2e test migration.
 - [x] P6 partial: e2e legacy-form-alias + stats API test; view interaction tests (35 web tests total).
 - [ ] Still open: exhaustive original view/e2e test migration, exact CSS class-by-class fidelity verification, timezone/cookie behavior.
+- [x] P7: ported group-form/user-form/JsonEditor views; wired dynamic routes; DST-safe timezone ranges; user stats param names aligned; migrated 8 original view test files' semantics (50 web tests). Fixed real JS syntax bug in user home copy script.
+- [ ] Still open: remaining original e2e/unit cases, exact CSS class-by-class fidelity, cookie/auth middleware details.

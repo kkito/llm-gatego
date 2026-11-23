@@ -12,6 +12,8 @@ import { statsPage } from './views/stats.js'
 import { adminLoginPage, userLoginPage } from './views/login.js'
 import { userHomePage } from './views/userHome.js'
 import { userStatsPage } from './views/userStats.js'
+import { groupFormPage } from './views/groupForm.js'
+import { userFormPage } from './views/userForm.js'
 
 export interface PageContext { path: string; version: string }
 export type PageRenderer = (ctx: PageContext) => Promise<string> | string
@@ -28,6 +30,8 @@ export const renderers: Record<string, PageRenderer> = {
   '/admin/privacy': async () => privacyPage((await api<any>('/api/admin/privacy')).data?.settings || { enabled: false, stripUserField: false, sanitizeFilePaths: false, whitelistFilter: false, pathPlaceholder: 'USER' }),
   '/admin/announcement': async () => announcementPage((await api<any>('/api/admin/announcement')).data?.content || ''),
   '/admin/models/new': () => modelFormPage(undefined, []),
+  '/admin/model-groups/new': async () => groupFormPage(undefined, (await api<any[]>('/api/admin/models')).data || []),
+  '/admin/users/new': async () => userFormPage(undefined, (await api<any[]>('/api/admin/models')).data || []),
   '/admin/stats': async () => {
     const d = (await api<any>('/api/admin/stats' + location.search)).data || {}
     return statsPage({
@@ -48,7 +52,7 @@ export const renderers: Record<string, PageRenderer> = {
   },
   '/user/stats': async () => {
     const d = (await api<any>('/api/user/stats' + location.search)).data || {}
-    return userStatsPage({ userName: q('userName') || 'User', start: q('start') || today(), end: q('end') || today(), totalRequests: d.total || 0, successfulRequests: d.successful || 0, totalTokens: d.totalTokens || 0, avgDuration: d.avgDuration || 0, byModel: d.byModel || {}, byDate: d.byDate || {} })
+    return userStatsPage({ userName: q('userName') || 'User', start: q('startDate') || today(), end: q('endDate') || today(), totalRequests: d.total || 0, successfulRequests: d.successful || 0, totalTokens: d.totalTokens || 0, avgDuration: d.avgDuration || 0, byModel: d.byModel || {}, byDate: d.byDate || {} })
   },
 }
 
@@ -61,6 +65,17 @@ export async function renderAdmin(ctx: PageContext): Promise<string> {
     return modelFormPage(models.find(x => x.customModel === decodeURIComponent(m![1])), [])
   }
   if ((m = path.match(/^\/admin\/models\/([^/]+)\/limits$/))) return modelLimitsPage(decodeURIComponent(m[1]), (await api<any[]>(`/api/admin/models/${m[1]}/limits`)).data || [])
+  if ((m = path.match(/^\/admin\/model-groups\/edit\/(.+)$/))) {
+    const groups = (await api<any[]>('/api/admin/model-groups')).data || []
+    const g = groups.find(x => x.name === decodeURIComponent(m![1]))
+    return groupFormPage(g, (await api<any[]>('/api/admin/models')).data || [])
+  }
+  if ((m = path.match(/^\/admin\/users\/edit\/(.+)$/))) {
+    const users = (await api<any[]>('/api/admin/users')).data || []
+    const u = users.find(x => x.name === decodeURIComponent(m![1]))
+    const models = (await api<any[]>('/api/admin/models')).data || []
+    return userFormPage(u, models.map((x: any) => x.customModel))
+  }
   const fn = renderers[path]
   if (!fn) return modelsPage([], `Page not implemented: ${path}`, ctx.version)
   try { return await fn(ctx) } catch (e) { return modelsPage([], (e as Error).message, ctx.version) }

@@ -51,7 +51,7 @@ func localDayRangeTZ(date, tz string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	return t.UTC().Format(time.RFC3339Nano), t.Add(24 * time.Hour).UTC().Format(time.RFC3339Nano), nil
+	return t.UTC().Format(time.RFC3339Nano), t.AddDate(0, 0, 1).UTC().Format(time.RFC3339Nano), nil
 }
 
 func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
@@ -525,8 +525,8 @@ func registerUserPagesAPI(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		start := r.URL.Query().Get("start")
-		end := r.URL.Query().Get("end")
+		start := r.URL.Query().Get("startDate")
+		end := r.URL.Query().Get("endDate")
 		modelFilter := r.URL.Query().Get("model")
 		userName := r.URL.Query().Get("userName")
 		type modelAgg struct { Requests, Successful, Failed int; TotalTokens, InputTokens, OutputTokens, CachedTokens int64; AvgDuration float64 }
