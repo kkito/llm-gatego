@@ -65,7 +65,9 @@ func defaultConfigDir() string {
 func printUsage(out io.Writer) {
 	fmt.Fprintln(out, "llm-gatego - Go rewrite of llm-gateway")
 	fmt.Fprintln(out, "usage: llm-gatego <start|daemon|stop|stats> [options]")
-	fmt.Fprintln(out, "  start  -C/--config-dir DIR  -p/--port N  -t/--timeout MS  --debug")
+	fmt.Fprintln(out, "  start  -C/--config-dir DIR  -p/--port N  -t/--timeout MS  -D/--daemon  --debug")
+	fmt.Fprintln(out, "  daemon [options] 在后台启动，等价 start -D")
+	fmt.Fprintln(out, "  stop   -C/--config-dir DIR 停止后台服务")
 	fmt.Fprintln(out, "  stats  -C/--config-dir DIR  --date YYYY-MM-DD  --week YYYY-Www  --month YYYY-MM  --by-hour  --json")
 }
 
@@ -115,6 +117,53 @@ func readPID(dir string) (int, error) {
 	}
 	return pid, nil
 }
+func buildDaemonArgs(args []string, o startOpts) []string {
+	_ = args // daemon child parameters are derived from parsed options to avoid duplicates.
+	childArgs := []string{"start", "-C", o.configDir, "-p", strconv.Itoa(o.port), "-t", strconv.Itoa(o.timeout)}
+	if o.debug {
+		childArgs = append(childArgs, "--debug")
+	}
+	return childArgs
+}
+
+func daemonChildCommand(exe string, args []string) *exec.Cmd {
+	cmd := exec.Command(exe, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	cmd.Env = append(os.Environ(), "LLM_GATEGO_DAEMON_CHILD=1")
+	return cmd
+}
+
+func startDaemon(o startOpts, out io.Writer) error {
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	child := daemonChildCommand(exe, buildDaemonArgs(nil, o))
+	if err := child.Start(); err != nil {
+		return err
+	}
+	if err := os.WriteFile(pidPath(o.configDir), []byte(strconv.Itoa(child.Process.Pid)), 0644); err != nil {
+		_ = child.Process.Kill()
+		return err
+	}
+	for i := 0; i < 100; i++ {
+		if resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/health", o.port)); err == nil {
+			resp.Body.Close()
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	fmt.Fprintf(out, "🚀 LLM Gateway 已后台启动\n")
+	fmt.Fprintf(out, "   PID: %d\n", child.Process.Pid)
+	fmt.Fprintf(out, "   端口：http://localhost:%d\n", o.port)
+	fmt.Fprintf(out, "   健康检查：http://localhost:%d/health\n", o.port)
+	fmt.Fprintf(out, "   工作目录：%s\n", o.configDir)
+	fmt.Fprintf(out, "\n停止服务:\n   llm-gatego stop -C %s\n", o.configDir)
+	return nil
+}
+
 func startCommand(args []string, out io.Writer, daemon bool) error {
 	o, err := parseStart(args, out)
 	if err != nil {
@@ -127,8 +176,15 @@ func startCommand(args []string, out io.Writer, daemon bool) error {
 	if err := os.MkdirAll(o.configDir, 0755); err != nil {
 		return err
 	}
-	if _, err := readPID(o.configDir); err == nil {
-		return fmt.Errorf("already running")
+	if running, err := readPID(o.configDir); err == nil {
+		if o.daemon {
+			return fmt.Errorf("already running (PID %d)", running)
+		}
+		fmt.Fprintf(out, "⚠️  检测到后台服务正在运行 (PID: %d)\n", running)
+		fmt.Fprintln(out, "   如需重启，请先执行：llm-gatego stop")
+	}
+	if o.daemon {
+		return startDaemon(o, out)
 	}
 	cfg, err := config.LoadFullConfig(filepath.Join(o.configDir, "config.json"))
 	if err != nil {
@@ -142,32 +198,13 @@ func startCommand(args []string, out io.Writer, daemon bool) error {
 	deps := proxyDeps(cfg, ctx, o.timeout)
 	deps.RequestLogger = store.GetRequestLogger(dm)
 	h := server.New(cfg, deps, ctx, server.Options{Debug: o.debug})
-	if o.daemon {
-		exe, err := os.Executable()
-		if err != nil {
+	isDaemonChild := os.Getenv("LLM_GATEGO_DAEMON_CHILD") == "1"
+	if !isDaemonChild {
+		if err := os.WriteFile(pidPath(o.configDir), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
 			return err
 		}
-		child := exec.Command(exe, "start", "-C", o.configDir, "-p", strconv.Itoa(o.port), "-t", strconv.Itoa(o.timeout))
-		child.Stdout = out
-		child.Stderr = os.Stderr
-		child.Env = append(os.Environ(), "LLM_GATEGO_DAEMON_CHILD=1")
-		if err := child.Start(); err != nil {
-			return err
-		}
-		for i := 0; i < 50; i++ {
-			if resp, err := http.Get(fmt.Sprintf("http://127.0.0.1:%d/health", o.port)); err == nil {
-				resp.Body.Close()
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		fmt.Fprintf(out, "daemon started (pid %d)\n", child.Process.Pid)
-		return nil
+		defer os.Remove(pidPath(o.configDir))
 	}
-	if err := os.WriteFile(pidPath(o.configDir), []byte(strconv.Itoa(os.Getpid())), 0644); err != nil {
-		return err
-	}
-	defer os.Remove(pidPath(o.configDir))
 	fmt.Fprintf(out, "llm-gatego listening on :%d\n", o.port)
 	return http.ListenAndServe(fmt.Sprintf(":%d", o.port), h)
 }
@@ -189,8 +226,19 @@ func stopCommand(args []string, out io.Writer) error {
 	if err := p.Signal(syscall.SIGTERM); err != nil {
 		return err
 	}
+	running := true
+	for i := 0; i < 30; i++ {
+		if err := p.Signal(syscall.Signal(0)); err != nil {
+			running = false
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if running {
+		_ = p.Signal(syscall.SIGKILL)
+	}
 	_ = os.Remove(pidPath(dir))
-	fmt.Fprintln(out, "stopped")
+	fmt.Fprintln(out, "✓ 服务已停止")
 	return nil
 }
 

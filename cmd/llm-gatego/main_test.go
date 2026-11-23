@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -96,4 +97,31 @@ func TestDefaultConfigDirIsLlmGatego(t *testing.T) {
 	if stats.configDir != want {
 		t.Fatalf("stats=%q want=%q", stats.configDir, want)
 	}
+}
+
+func TestBuildDaemonArgs(t *testing.T) {
+	got := buildDaemonArgs([]string{"-p", "5000", "--debug", "-D", "--daemon"}, startOpts{
+		configDir: "/tmp/cfg",
+		port:      5000,
+		timeout:   1000,
+		debug:     true,
+	})
+	want := []string{"start", "-C", "/tmp/cfg", "-p", "5000", "-t", "1000", "--debug"}
+	if strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatalf("got=%v want=%v", got, want)
+	}
+}
+
+func TestDaemonChildCommandDetached(t *testing.T) {
+	cmd := daemonChildCommand("/path/to/llm-gatego", []string{"start", "-p", "4000"})
+	if cmd.SysProcAttr == nil || !cmd.SysProcAttr.Setsid {
+		t.Fatalf("child is not detached: %+v", cmd.SysProcAttr)
+	}
+	if cmd.Stdout != io.Discard || cmd.Stderr != io.Discard {
+		t.Fatalf("stdio not discarded: stdout=%#v stderr=%#v", cmd.Stdout, cmd.Stderr)
+	}
+	if len(cmd.Env) == 0 || cmd.Env[len(cmd.Env)-1] != "LLM_GATEGO_DAEMON_CHILD=1" {
+		t.Fatalf("env=%v", cmd.Env)
+	}
+	_ = exec.Command
 }
