@@ -32,6 +32,7 @@ func New(cfg *config.ProxyConfig, deps proxy.Dependencies, ctx config.ConfigCont
 	apiDeps := APIDeps{ConfigDir: ctx.ConfigDir, Get: deps.ConfigGetter, Update: func(c *config.ProxyConfig) { s.mu.Lock(); s.current = c; s.mu.Unlock() }}
 	mux := http.NewServeMux()
 	RegisterAdminAPIs(mux, apiDeps)
+	RegisterExtraAdminAPIs(mux, apiDeps)
 	RegisterUserAPIs(mux, apiDeps)
 	adminMux := http.NewServeMux()
 	RegisterAdminAPIs(adminMux, apiDeps)
