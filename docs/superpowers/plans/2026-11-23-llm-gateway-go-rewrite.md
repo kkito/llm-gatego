@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- 源项目路径：`/Users/kkito/proj/own/llm-gateway`（只读参考）；目标路径：`/Users/kkito/proj/own/llm-gatego`。
+- 源项目路径：`<original-llm-gateway>`（只读参考）；目标路径：`<project-root>`。
 - 所有后端包位于 `internal/`，测试文件与实现同包同目录（`*_test.go`）。
 - 所有单例必须提供 `ResetForTest()` / `resetForTest()`；测试间用 `t.TempDir()` 隔离，不依赖网络。
 - 测试分层：单元（每包 `_test.go`）/ 集成（`httptest` + 临时 SQLite）/ e2e（`internal/e2e`）/ 前端（vitest + happy-dom）。
@@ -61,7 +61,7 @@ Makefile, go.mod, README.md
 - [ ] **Step 1: 初始化 go.mod**
 
 ```bash
-cd /Users/kkito/proj/own/llm-gatego
+cd <project-root>
 go mod init github.com/kkito/llm-gatego
 go get modernc.org/sqlite@latest
 ```
@@ -290,7 +290,7 @@ func TestLoadFullConfigLegacyArray(t *testing.T) {
 - [ ] **Step 3: 运行测试确认失败**
 
 ```bash
-cd /Users/kkito/proj/own/llm-gatego && go test ./internal/config -run TestLoadFullConfig -v
+cd <project-root> && go test ./internal/config -run TestLoadFullConfig -v
 # Expected: FAIL — undefined: LoadFullConfig
 ```
 

@@ -5,7 +5,7 @@
 
 ## 1. 目标与范围
 
-把 `/Users/kkito/proj/own/llm-gateway`（TypeScript / Hono / Node，v1.15.0，约 22k 行 src，133 个测试文件、约 1382 个 test case）在空目录 `/Users/kkito/proj/own/llm-gatego` 中用 Go 完整重写，包含：
+把 `<original-llm-gateway>`（TypeScript / Hono / Node，v1.15.0，约 22k 行 src，133 个测试文件、约 1382 个 test case）在空目录 `<project-root>` 中用 Go 完整重写，包含：
 
 1. CLI（start/stop/daemon/pidfile/version/stats 子命令）+ HTTP 服务（三条代理路由、models、health、完整 admin/user 路由）
 2. 配置加载/校验/热重载、API Key 引用、级联清理纯函数
