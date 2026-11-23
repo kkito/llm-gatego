@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -86,6 +87,7 @@ func TestClaudeCodeNormalize(t *testing.T) {
 		for k := range asMap(input) {
 			keys = append(keys, k)
 		}
+		sort.Strings(keys)
 		if !reflect.DeepEqual(keys, []string{"a_value", "m_value", "z_value"}) {
 			t.Fatal(keys)
 		}

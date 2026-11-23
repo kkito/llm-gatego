@@ -29,6 +29,8 @@ type Dependencies struct {
 	Timeout      time.Duration
 	LogDir       string
 	Interceptors *interceptor.Manager
+	// RequestUser, when set, resolves the authenticated user for interceptor context.
+	RequestUser func(*http.Request) *interceptor.CurrentUser
 }
 
 type Handler struct{ deps Dependencies }
@@ -82,7 +84,13 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var lastErr error
 	var realModel, groupName string
 	for _, pc := range cfgs {
-		lastStatus, lastBody, lastErr, realModel, groupName = h.attempt(r.Context(), w, cfg, &pc, body, source, endpoint, stream, id, ctxClientIP, r.URL.Path)
+		var currentUser *interceptor.CurrentUser
+		if h.deps.RequestUser != nil {
+			if u := h.deps.RequestUser(r); u != nil {
+				currentUser = &interceptor.CurrentUser{Name: u.Name, APIKey: u.APIKey, AllowedModels: u.AllowedModels}
+			}
+		}
+		lastStatus, lastBody, lastErr, realModel, groupName = h.attempt(w, r, cfg, &pc, body, source, endpoint, stream, id, ctxClientIP, currentUser)
 		if lastErr != nil || lastStatus == 429 {
 			continue
 		}
@@ -171,7 +179,7 @@ func fromProviderBody(body map[string]any, providerFormat, clientFormat converte
 	}
 	return chat
 }
-func (h *Handler) attempt(parent context.Context, w http.ResponseWriter, cfg *config.ProxyConfig, pc *config.ProviderConfig, body map[string]any, source converter.FormatName, endpoint string, stream bool, requestID, clientIP, requestPath string) (int, map[string]any, error, string, string) {
+func (h *Handler) attempt(w http.ResponseWriter, r *http.Request, cfg *config.ProxyConfig, pc *config.ProviderConfig, body map[string]any, source converter.FormatName, endpoint string, stream bool, requestID, clientIP string, currentUser *interceptor.CurrentUser) (int, map[string]any, error, string, string) {
 	target := providerFormat(pc.Provider)
 	upBody := toProviderBody(body, source, target)
 	upBody["model"] = pc.RealModel
@@ -184,7 +192,13 @@ func (h *Handler) attempt(parent context.Context, w http.ResponseWriter, cfg *co
 	url := p.BuildURL(pc, endpoint)
 	headers := p.BuildHeaders(apiKey)
 	up := &interceptor.UpstreamRequest{URL: url, Headers: headers, Body: upBody}
-	ictx := &interceptor.Context{Provider: pc, RequestHeaders: map[string]string{}, RequestPath: requestPath, ClientIP: clientIP, RequestID: requestID, CustomModel: pc.CustomModel, ModelGroup: "", Stream: stream}
+	requestHeaders := map[string]string{}
+	for k, v := range r.Header {
+		if len(v) > 0 {
+			requestHeaders[k] = v[0]
+		}
+	}
+	ictx := &interceptor.Context{Provider: pc, RequestHeaders: requestHeaders, RequestPath: r.URL.Path, ClientIP: clientIP, RequestID: requestID, CustomModel: pc.CustomModel, CurrentUser: currentUser, ModelGroup: "", Stream: stream}
 	if h.deps.Interceptors != nil {
 		up, err = h.deps.Interceptors.Execute(up, ictx)
 		if err != nil {
@@ -195,7 +209,7 @@ func (h *Handler) attempt(parent context.Context, w http.ResponseWriter, cfg *co
 		}
 	}
 	b, _ := json.Marshal(up.Body)
-	ctx, cancel := context.WithTimeout(parent, h.deps.Timeout)
+	ctx, cancel := context.WithTimeout(r.Context(), h.deps.Timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, up.URL, bytes.NewReader(b))
 	if err != nil {

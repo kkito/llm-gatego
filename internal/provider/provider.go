@@ -1,8 +1,9 @@
 package provider
 
 import (
-	"strings"
 	"github.com/kkito/llm-gatego/internal/config"
+	"github.com/kkito/llm-gatego/internal/util"
+	"strings"
 )
 
 type Provider interface {
@@ -47,19 +48,19 @@ func (b *baseProvider) BuildURL(cfg *config.ProviderConfig, path string) string 
 type openAIProvider struct{ baseProvider }
 
 func (p *openAIProvider) BuildHeaders(apiKey string) map[string]string {
-	return map[string]string{"Authorization": "Bearer " + apiKey, "Content-Type": "application/json"}
+	return map[string]string{"Authorization": "Bearer " + apiKey, "Content-Type": "application/json", "User-Agent": "kkito-llm-agent/" + util.Version}
 }
 
 type anthropicProvider struct{ baseProvider }
 
 func (p *anthropicProvider) BuildHeaders(apiKey string) map[string]string {
-	return map[string]string{"x-api-key": apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
+	return map[string]string{"x-api-key": apiKey, "Authorization": "Bearer " + apiKey, "anthropic-version": "2023-06-01", "Content-Type": "application/json", "User-Agent": "kkito-llm-agent/" + util.Version}
 }
 
 type responseAPIProvider struct{ baseProvider }
 
 func (p *responseAPIProvider) BuildHeaders(apiKey string) map[string]string {
-	return map[string]string{"Authorization": "Bearer " + apiKey, "Content-Type": "application/json"}
+	return map[string]string{"Authorization": "Bearer " + apiKey, "Content-Type": "application/json", "User-Agent": "kkito-llm-agent/" + util.Version}
 }
 
 func GetProvider(cfg *config.ProviderConfig) Provider {
