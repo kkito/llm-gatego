@@ -110,6 +110,45 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = groupName
 	_ = start
 }
+func mergeDefaultParams(body map[string]any, defaults map[string]any) map[string]any {
+	if len(defaults) == 0 { return body }
+	out := map[string]any{}
+	for k, v := range defaults { out[k] = deepCopyValue(v) }
+	for k, v := range body {
+		if k == "extra_body" {
+			if dm, ok := defaults["extra_body"].(map[string]any); ok {
+				if bm, ok := v.(map[string]any); ok { out[k] = deepMergeMaps(dm, bm); continue }
+			}
+		}
+		out[k] = v
+	}
+	return out
+}
+func deepCopyValue(v any) any {
+	switch x := v.(type) {
+	case map[string]any:
+		m := map[string]any{}
+		for k, val := range x { m[k] = deepCopyValue(val) }
+		return m
+	case []any:
+		a := make([]any, len(x))
+		for i, val := range x { a[i] = deepCopyValue(val) }
+		return a
+	default: return v
+	}
+}
+func deepMergeMaps(base, override map[string]any) map[string]any {
+	out := map[string]any{}
+	for k, v := range base { out[k] = deepCopyValue(v) }
+	for k, v := range override {
+		if bm, ok := out[k].(map[string]any); ok {
+			if om, ok := v.(map[string]any); ok { out[k] = deepMergeMaps(bm, om); continue }
+		}
+		out[k] = v
+	}
+	return out
+}
+
 func endpointFor(path string) (string, converter.FormatName) {
 	switch path {
 	case "/chat/completions", "/v1/chat/completions", "/v1/v1/chat/completions":
@@ -181,7 +220,8 @@ func fromProviderBody(body map[string]any, providerFormat, clientFormat converte
 }
 func (h *Handler) attempt(w http.ResponseWriter, r *http.Request, cfg *config.ProxyConfig, pc *config.ProviderConfig, body map[string]any, source converter.FormatName, endpoint string, stream bool, requestID, clientIP string, currentUser *interceptor.CurrentUser) (int, map[string]any, error, string, string) {
 	target := providerFormat(pc.Provider)
-	upBody := toProviderBody(body, source, target)
+	merged := mergeDefaultParams(body, pc.DefaultParams)
+	upBody := toProviderBody(merged, source, target)
 	upBody["model"] = pc.RealModel
 	endpoint = providerEndpoint(target)
 	apiKey, err := config.ResolveAPIKey(pc.APIKey, cfg.ApiKeys)

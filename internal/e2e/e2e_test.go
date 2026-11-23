@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/kkito/llm-gatego/internal/config"
 	"github.com/kkito/llm-gatego/internal/logger"
 	"github.com/kkito/llm-gatego/internal/proxy"
@@ -157,4 +158,48 @@ func TestE2ELegacyFormAliasAndStatsAPI(t *testing.T) {
 	// Stats API envelope.
 	w = call(t, mux, "GET", "/api/admin/stats", "", nil)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"ok":true`) { t.Fatal(w.Code, w.Body.String()) }
+}
+
+func TestE2EDefaultParamsMerged(t *testing.T) {
+	var captured map[string]any
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(b, &captured)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"id":"c","choices":[{"index":0,"message":{"role":"assistant","content":"Hello"}}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}`))
+	}))
+	defer up.Close()
+	cfg := &config.ProxyConfig{Models: []config.ProviderConfig{{
+		CustomModel: "m", RealModel: "r", BaseURL: up.URL, Provider: config.ProviderOpenAI, APIKey: "k",
+		DefaultParams: map[string]any{"temperature": 0.5, "max_tokens": 2048, "extra_body": map[string]any{"top_k": 50}},
+	}}}
+	mux := newServer(t, cfg)
+	w := call(t, mux, "POST", "/v1/chat/completions", `{"model":"m","temperature":0.8,"messages":[]}`, nil)
+	if w.Code != 200 { t.Fatal(w.Code, w.Body.String()) }
+	if fmt.Sprint(captured["temperature"]) != "0.8" || fmt.Sprint(captured["max_tokens"]) != "2048" { t.Fatal(captured) }
+	eb, _ := captured["extra_body"].(map[string]any)
+	if fmt.Sprint(eb["top_k"]) != "50" { t.Fatal(captured) }
+}
+
+func TestE2EModelDeleteCleanup(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &config.ProxyConfig{
+		Models: []config.ProviderConfig{
+			{CustomModel: "gpt-4", RealModel: "r1", Provider: config.ProviderOpenAI, BaseURL: "http://x", APIKey: "k"},
+			{CustomModel: "gpt-3.5", RealModel: "r2", Provider: config.ProviderOpenAI, BaseURL: "http://x", APIKey: "k"},
+		},
+		ModelGroups: []config.ModelGroup{{Name: "gpt-pool", Models: []string{"gpt-4", "gpt-3.5"}}, {Name: "only-gpt4", Models: []string{"gpt-4"}}},
+		UserApiKeys: []config.UserApiKey{{Name: "u", APIKey: "sk-u", AllowedModels: []string{"gpt-4"}}},
+	}
+	b, _ := json.Marshal(cfg)
+	path := filepath.Join(dir, "config.json")
+	os.WriteFile(path, b, 0644)
+	mux := server.New(cfg, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir, ConfigPath: path}, server.Options{})
+	w := call(t, mux, "POST", "/admin/models/delete/gpt-4", "", nil)
+	if w.Code != 200 { t.Fatal(w.Code, w.Body.String()) }
+	out, err := config.LoadFullConfig(path)
+	if err != nil { t.Fatal(err) }
+	if len(out.Models) != 1 || out.Models[0].CustomModel != "gpt-3.5" { t.Fatal(out.Models) }
+	if len(out.ModelGroups) != 1 || out.ModelGroups[0].Name != "gpt-pool" { t.Fatal(out.ModelGroups) }
+	if len(out.UserApiKeys[0].AllowedModels) != 0 { t.Fatal(out.UserApiKeys) }
 }
