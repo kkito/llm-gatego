@@ -1,10 +1,18 @@
 import { escapeHtml } from '../format.js'
-import { css } from '../styles/admin_users.js'
-import { adminPage } from './layout.js'
+import { empty, notice, pageHeader, panel, shell } from '../ui/shell.js'
 export interface UserView { name: string; apikey: string; desc?: string; allowedModels?: string[] }
+
 export function usersPage(users: UserView[], enabled = true, error?: string, version = '1.15.0'): string {
-  const body = `<div class="page-header"><div><h1 class="page-title">用户管理</h1><p class="page-subtitle">管理访问 API 的用户和密钥</p></div><div class="btn-group"><a href="/admin/users/new" class="btn btn-primary">+ 新增用户</a><form method="post" action="/api/admin/users/toggle" class="toggle-form-inline"><input type="hidden" name="enabled" value="${enabled ? 'false' : 'true'}"><button class="btn btn-secondary">${enabled ? '禁用用户认证' : '启用用户认证'}</button></form></div></div>
-${error ? `<div class="error-banner">${escapeHtml(error)}</div>` : ''}
-${users.length === 0 ? `<div class="empty-state"><div class="empty-state-icon">👤</div><h3>暂无用户</h3><a href="/admin/users/new" class="btn btn-primary">新增用户</a></div>` : `<div class="users-grid">${users.map(u => `<div class="user-card"><div class="user-card-header"><div class="user-info"><div class="user-avatar">👤</div><div><div class="user-name">${escapeHtml(u.name)}</div></div></div><div class="user-actions"><a href="/admin/users/edit/${encodeURIComponent(u.name)}" class="btn btn-icon btn-secondary" title="编辑">✏️</a></div></div><div class="user-apikey-row"><span class="user-apikey-label">Key</span><code class="user-apikey-value" title="${escapeHtml(u.apikey)}">${escapeHtml(u.apikey.slice(0, 8))}…</code><button class="user-apikey-copy" data-key="${escapeHtml(u.apikey)}" title="复制 Key">📋</button></div><div class="user-desc">${escapeHtml(u.desc || '—')}</div><div class="model-tags-label">可用模型</div><div class="model-tags">${!u.allowedModels || u.allowedModels.length === 0 ? '<span class="model-tag">所有模型</span>' : u.allowedModels.slice(0, 3).map(m => `<span class="model-tag">${escapeHtml(m)}</span>`).join('')}${(u.allowedModels?.length || 0) > 3 ? `<span class="model-tag model-tag-more">等${u.allowedModels!.length - 3}个模型</span>` : ''}</div><div class="user-card-actions"><a href="/admin/users/edit/${encodeURIComponent(u.name)}" class="btn btn-secondary btn-sm">编辑</a><form method="POST" action="/api/admin/users/delete/${encodeURIComponent(u.name)}" style="display:inline"><button class="btn btn-sm">删除</button></form></div></div>`).join('')}</div>`}`
-  return adminPage('用户管理', '/admin/users', body, css, version)
+  const cards = users.map(u => `<article class="ui-panel" style="margin:0">
+    <div class="ui-panel-head"><div><h3 class="ui-panel-title">${escapeHtml(u.name)}</h3><p class="ui-panel-sub">${escapeHtml(u.desc || '—')}</p></div><a class="ui-btn ui-btn-sm" href="/admin/users/edit/${encodeURIComponent(u.name)}">编辑</a></div>
+    <div class="ui-panel-body">
+      <div class="ui-field-hint ui-mono" style="margin-bottom:10px">${escapeHtml(u.apikey.slice(0, 8))}…</div>
+      <div class="ui-row">${!u.allowedModels || u.allowedModels.length === 0 ? '<span class="ui-badge">所有模型</span>' : u.allowedModels.slice(0, 3).map(m => `<span class="ui-badge">${escapeHtml(m)}</span>`).join('')}${(u.allowedModels?.length || 0) > 3 ? `<span class="ui-field-hint">等${u.allowedModels!.length - 3}个模型</span>` : ''}</div>
+      <div class="ui-row" style="margin-top:14px"><form method="POST" action="/api/admin/users/delete/${encodeURIComponent(u.name)}"><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form></div>
+    </div></article>`).join('')
+  const toggle = `<form method="post" action="/api/admin/users/toggle"><input type="hidden" name="enabled" value="${enabled ? 'false' : 'true'}"><button class="ui-btn">${enabled ? '禁用用户认证' : '启用用户认证'}</button></form>`
+  const body = pageHeader({ eyebrow: 'Access', title: '用户管理', subtitle: '管理访问 API 的用户和密钥', actions: `<a class="ui-btn ui-btn-primary" href="/admin/users/new">+ 新增用户</a>${toggle}` }) +
+    (error ? notice(error, 'error') : '') +
+    (users.length ? `<div class="ui-grid ui-grid-auto">${cards}</div>` : panel('用户列表', '', empty('暂无用户', '添加用户后即可按密钥限制访问。')))
+  return shell({ title: '用户管理', path: '/admin/users', version, body })
 }

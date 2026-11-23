@@ -1,13 +1,30 @@
 import { escapeHtml } from '../format.js'
-import { css } from '../styles/admin_api_keys.js'
-import { adminPage } from './layout.js'
-const configMask = (k: string) => '*****' + k.slice(-4)
+import { empty, formField, notice, pageHeader, panel, shell, table } from '../ui/shell.js'
+
 export interface KeyView { id: string; name: string; key?: string; keyHint?: string; createdAt?: number }
 export interface EditingKeyView { id: string; name: string; keyHint: string }
+
 export function apiKeysPage(keys: KeyView[], error?: string, success?: string, version = '1.15.0', editing?: EditingKeyView): string {
-  const body = `<div class="page-header"><div><h1 class="page-title">API Key 管理</h1><p class="page-subtitle">管理外部调用使用的 API Key</p></div></div>
-${error ? `<div class="error-banner">${escapeHtml(error)}</div>` : ''}${success ? `<div class="success-banner">${escapeHtml(success)}</div>` : ''}
-<div class="two-col"><div class="keys-section"><h2 class="keys-section-title">🔑 已存储的 API Key</h2>${keys.length === 0 ? '<div class="empty-state"><div class="empty-state-icon">🔑</div><h3>暂无 API Key</h3></div>' : `<div class="keys-list">${keys.map(k => `<div class="key-card"><div class="key-header"><div class="key-icon">🔑</div><div class="key-name-block"><div class="key-name">${escapeHtml(k.name)}</div><div class="key-value">${escapeHtml(k.keyHint || (k.key ? configMask(k.key) : '*****'))}</div>${k.createdAt ? `<div class="key-date">创建于 ${new Date(k.createdAt).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}</div>` : ''}</div><div class="key-actions"><a href="/admin/api-keys/edit/${encodeURIComponent(k.id)}" class="btn btn-icon btn-secondary" title="编辑">✏️</a><form method="POST" action="/api/admin/api-keys/delete/${encodeURIComponent(k.id)}" class="key-delete-form"><button class="key-delete-btn" title="删除">×</button></form></div></div></div>`).join('')}</div>`}</div>
-<div class="form-card"><h2 class="form-title">${editing ? '✏️ 编辑 API Key' : '➕ 新增 API Key'}</h2><form method="POST" action="${editing ? '/admin/api-keys/edit/' + encodeURIComponent(editing.id) : '/admin/api-keys'}"><div class="form-group"><label class="form-label" for="name">名称</label><input class="form-input" id="name" name="name" value="${editing ? escapeHtml(editing.name) : ''}" placeholder="例如：我的 API Key" required><span class="form-hint">用于识别此 API Key</span></div><div class="form-group"><label class="form-label" for="key">API Key</label><input class="form-input" id="key" name="key" placeholder="${editing ? '留空表示不修改（当前 ' + escapeHtml(editing.keyHint) + '）' : '请输入 API Key'}" ${editing ? '' : 'required'}></div><div class="form-actions"><button type="submit" class="btn btn-primary">${editing ? '保存' : '添加'}</button><a href="/admin/api-keys" class="btn btn-secondary">取消</a></div></form></div></div>`
-  return adminPage('API Key 管理', '/admin/api-keys', body, css, version)
+  const rows = keys.map(k => `<tr>
+    <td><strong>${escapeHtml(k.name)}</strong><div class="ui-field-hint">${k.createdAt ? new Date(k.createdAt).toLocaleDateString('zh-CN') : ''}</div></td>
+    <td class="ui-mono">${escapeHtml(k.keyHint || (k.key ? '*****' + k.key.slice(-4) : '*****'))}</td>
+    <td><div class="ui-row">
+      <a class="ui-btn ui-btn-sm" href="/admin/api-keys/edit/${encodeURIComponent(k.id)}">编辑</a>
+      <form method="POST" action="/admin/api-keys/delete/${encodeURIComponent(k.id)}" onsubmit="return confirm('确定删除 ${escapeHtml(k.name)}?')"><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form>
+    </div></td>
+  </tr>`)
+  const form = `<form method="POST" action="${editing ? '/admin/api-keys/edit/' + encodeURIComponent(editing.id) : '/admin/api-keys'}">
+    ${formField('名称', `<input class="ui-input" name="name" value="${editing ? escapeHtml(editing.name) : ''}" placeholder="例如：主网关 Key" required>`)}
+    ${formField('API Key', `<input class="ui-input" name="key" placeholder="${editing ? '留空表示保持当前值' : 'sk-...'}" ${editing ? '' : 'required'}>`, editing ? `当前值：${escapeHtml(editing.keyHint)}` : '')}
+    <div class="ui-row"><button class="ui-btn ui-btn-primary">${editing ? '保存修改' : '添加密钥'}</button><a class="ui-btn" href="/admin/api-keys">取消</a></div>
+  </form>`
+  const body = pageHeader({
+    eyebrow: 'Credentials', title: 'API Key 管理', subtitle: '集中维护上游调用使用的密钥，模型配置可通过 $$名称$$ 引用。',
+    actions: `<a class="ui-btn ui-btn-primary" href="/admin/api-keys">+ 新增密钥</a>`,
+  }) + (error ? notice(error, 'error') : '') + (success ? notice(success, 'success') : '') +
+    `<div class="ui-grid ui-grid-2">
+      ${panel('密钥列表', `${keys.length} 个已存储密钥`, keys.length ? table(['名称', 'Key', '操作'], rows) : empty('暂无密钥', '添加第一个 API Key 后即可在模型配置中引用。'))}
+      ${panel(editing ? '编辑密钥' : '新增密钥', '', form)}
+    </div>`
+  return shell({ title: 'API Key 管理', path: '/admin/api-keys', version, body })
 }

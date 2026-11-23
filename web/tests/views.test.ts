@@ -24,7 +24,7 @@ describe('original view fidelity', () => {
   it('groups/users/api keys pages have original headers', () => {
     expect(groupsPage([])).toContain('管理模型分组配置')
     expect(usersPage([])).toContain('管理访问 API 的用户和密钥')
-    expect(apiKeysPage([])).toContain('管理外部调用使用的 API Key')
+    expect(apiKeysPage([])).toContain('集中维护上游调用使用的密钥')
   })
   it('stats page has heatmap and token cards', () => {
     const h = statsPage({ startDate: '2026-01-01', endDate: '2026-01-01', dateRange: '2026-01-01', totalRequests: 2, successfulRequests: 1, failedRequests: 1, totalInputTokens: 10, totalOutputTokens: 20, totalTokens: 30, totalCachedTokens: 5, avgDuration: 100, byModel: { m1: { requests: 2, successful: 1, failed: 1, totalTokens: 30 } }, byDate: { '2026-01-01': 30 }, byHour: {} })
