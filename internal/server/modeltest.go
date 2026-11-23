@@ -16,6 +16,12 @@ import (
 
 // Functional port of original testModelConnection(): sends a real upstream
 // Chat/Responses request and returns content/reasoning/usage/raw response.
+func writeTestJSON(w http.ResponseWriter, status int, payload map[string]any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(payload)
+}
+
 func handleModelTest(w http.ResponseWriter, r *http.Request, d APIDeps) {
 	var in struct {
 		Provider      string         `json:"provider"`
@@ -31,12 +37,12 @@ func handleModelTest(w http.ResponseWriter, r *http.Request, d APIDeps) {
 		return
 	}
 	if in.Provider == "" || in.BaseURL == "" || in.RealModel == "" {
-		fail(w, 400, "请填写所有必填字段（Provider、Base URL、实际模型名称）")
+		writeTestJSON(w, 400, map[string]any{"success": false, "message": "请填写所有必填字段（Provider、Base URL、实际模型名称）"})
 		return
 	}
 	cfg, err := d.load()
 	if err != nil {
-		fail(w, 500, err.Error())
+		writeTestJSON(w, 500, map[string]any{"success": false, "message": err.Error()})
 		return
 	}
 	key := in.APIKey
@@ -59,13 +65,13 @@ func handleModelTest(w http.ResponseWriter, r *http.Request, d APIDeps) {
 	if strings.HasPrefix(key, "$$") && strings.HasSuffix(key, "$$") {
 		resolved, err := config.ResolveAPIKey(key, cfg.ApiKeys)
 		if err != nil {
-			okJSON(w, map[string]any{"success": false, "message": "API Key 引用 " + key + " 不存在，请检查 API Key 配置"})
+			writeTestJSON(w, 200, map[string]any{"success": false, "message": "API Key 引用 " + key + " 不存在，请检查 API Key 配置"})
 			return
 		}
 		key = resolved
 	}
 	if key == "" {
-		fail(w, 400, "请填写或选择 API Key")
+		writeTestJSON(w, 400, map[string]any{"success": false, "message": "请填写或选择 API Key"})
 		return
 	}
 
@@ -99,7 +105,7 @@ func handleModelTest(w http.ResponseWriter, r *http.Request, d APIDeps) {
 	}
 	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, urlStr, bytes.NewReader(reqJSON))
 	if err != nil {
-		okJSON(w, map[string]any{"success": false, "message": "网络错误: " + err.Error()})
+		writeTestJSON(w, 200, map[string]any{"success": false, "message": "网络错误: " + err.Error()})
 		return
 	}
 	for k, v := range headers {
@@ -108,19 +114,19 @@ func handleModelTest(w http.ResponseWriter, r *http.Request, d APIDeps) {
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		okJSON(w, map[string]any{"success": false, "message": "网络错误: " + err.Error()})
+		writeTestJSON(w, 200, map[string]any{"success": false, "message": "网络错误: " + err.Error()})
 		return
 	}
 	defer resp.Body.Close()
 	raw, _ := io.ReadAll(resp.Body)
 	requestBody, _ := json.MarshalIndent(reqBody, "", "  ")
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		okJSON(w, map[string]any{"success": false, "message": "HTTP " + strconv.Itoa(resp.StatusCode) + ": " + string(raw), "rawResponse": string(raw), "requestBody": string(requestBody)})
+		writeTestJSON(w, 200, map[string]any{"success": false, "message": "HTTP " + strconv.Itoa(resp.StatusCode) + ": " + string(raw), "rawResponse": string(raw), "requestBody": string(requestBody)})
 		return
 	}
 	var data map[string]any
 	if json.Unmarshal(raw, &data) != nil {
-		okJSON(w, map[string]any{"success": true, "model": in.RealModel, "content": string(raw), "requestBody": string(requestBody), "fullResponse": string(raw)})
+		writeTestJSON(w, 200, map[string]any{"success": true, "model": in.RealModel, "content": string(raw), "requestBody": string(requestBody), "fullResponse": string(raw)})
 		return
 	}
 	content, reasoning := extractTestContent(data, isResponses)
@@ -139,7 +145,7 @@ func handleModelTest(w http.ResponseWriter, r *http.Request, d APIDeps) {
 	if m, ok := data["model"].(string); ok {
 		modelName = m
 	}
-	okJSON(w, map[string]any{"success": true, "model": modelName, "content": content, "reasoningContent": reasoning, "usage": usage, "requestBody": string(requestBody), "fullResponse": string(fullResp)})
+	writeTestJSON(w, 200, map[string]any{"success": true, "model": modelName, "content": content, "reasoningContent": reasoning, "usage": usage, "requestBody": string(requestBody), "fullResponse": string(fullResp)})
 }
 func defaultTestMessage(s string) string {
 	if s == "" {
