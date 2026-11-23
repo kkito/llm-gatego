@@ -19,7 +19,6 @@ func RegisterLegacyFormAliases(mux *http.ServeMux) {
 		"/admin/users":                  "/api/admin/users",
 		"/admin/users/toggle":           "/api/admin/users/toggle",
 		"/admin/users/new":              "/api/admin/users",
-		"/admin/login":                  "/api/admin/login",
 		"/admin/models/move/":           "/api/admin/models/move/",
 		"/admin/models/copy/":           "/api/admin/models/copy/",
 		"/admin/models/delete/":         "/api/admin/models/delete/",

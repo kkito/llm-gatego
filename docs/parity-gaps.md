@@ -54,3 +54,5 @@
 - [ ] Still open: remaining e2e/unit cases, exact CSS fidelity.
 - [x] P10: added missing original CSS class hooks in stats/user-home/layout (navbar, heatmap legend/months, request-list, stats-table, pagination-info).
 - [ ] Still open: exhaustive e2e/unit migration and pixel-level CSS verification.
+- [x] P11: original form-login behavior (cookie + 302 redirect, first-time password setup, invalid password redirect) migrated and e2e-tested.
+- [ ] Still open: exhaustive original test-suite migration, pixel-level CSS verification.

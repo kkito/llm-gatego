@@ -36,6 +36,7 @@ func New(cfg *config.ProxyConfig, deps proxy.Dependencies, ctx config.ConfigCont
 	RegisterExtraAdminAPIs(mux, apiDeps)
 	RegisterUserAPIs(mux, apiDeps)
 	RegisterLegacyFormAliases(mux)
+	RegisterFormLoginAliases(mux, apiDeps)
 	adminMux := http.NewServeMux()
 	RegisterAdminAPIs(adminMux, apiDeps)
 	mux.Handle("/api/admin/", AdminAuth(adminMux, apiDeps))

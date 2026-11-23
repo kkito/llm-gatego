@@ -218,3 +218,16 @@ func TestE2EPageAuthRedirects(t *testing.T) {
 	w = call(t, mux, "GET", "/admin/login", "", nil)
 	if w.Code != 200 { t.Fatal(w.Code) }
 }
+
+func TestE2EFormLoginRedirect(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	os.WriteFile(path, []byte(`{"models":[]}`), 0644)
+	cfg, _ := config.LoadFullConfig(path)
+	mux := server.New(cfg, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir, ConfigPath: path}, server.Options{})
+	w := call(t, mux, "POST", "/admin/login", "password=secret", map[string]string{"Content-Type": "application/x-www-form-urlencoded"})
+	if w.Code != 302 || w.Header().Get("Location") != "/admin/models" { t.Fatal(w.Code, w.Header().Get("Location"), w.Body.String()) }
+	if w.Header().Get("Set-Cookie") == "" { t.Fatal("missing session cookie") }
+	w = call(t, mux, "POST", "/admin/login", "password=wrong", map[string]string{"Content-Type": "application/x-www-form-urlencoded"})
+	if w.Code != 302 || w.Header().Get("Location") == "/admin/models" { t.Fatal(w.Code, w.Header().Get("Location")) }
+}
