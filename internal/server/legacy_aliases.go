@@ -18,7 +18,6 @@ import (
 func RegisterLegacyFormAliases(mux *http.ServeMux) {
 	exact := map[string]string{
 		"/admin/models/":          "/api/admin/models/",
-		"/admin/models/test":      "/api/admin/models/test",
 		"/admin/model-groups/":    "/api/admin/model-groups/",
 		"/admin/announcement":     "/api/admin/announcement",
 		"/admin/privacy":          "/api/admin/privacy",
@@ -35,6 +34,8 @@ func RegisterLegacyFormAliases(mux *http.ServeMux) {
 		"/admin/model-groups": "/api/admin/model-groups",
 		"/admin/users":        "/api/admin/users",
 	}
+	// The model-test panel posts JSON via fetch and expects a raw JSON reply.
+	mux.HandleFunc("POST /admin/models/test", jsonBridge(mux, "/api/admin/models/test"))
 	for from, to := range exact {
 		from, to := from, to
 		mux.HandleFunc("POST "+from, formBridge(mux, from, to))
@@ -93,10 +94,13 @@ func formBridge(mux *http.ServeMux, from, to string) http.HandlerFunc {
 		resBody, _ := io.ReadAll(res.Body)
 
 		if res.StatusCode >= 200 && res.StatusCode < 300 {
-			target := "/admin"
-			if ref := r.Header.Get("Referer"); ref != "" {
-				if u, err := url.Parse(ref); err == nil && strings.HasPrefix(u.Path, "/") {
-					target = u.Path
+			target := formSuccessTarget(r)
+			if target == "" {
+				target = "/admin"
+				if ref := r.Header.Get("Referer"); ref != "" {
+					if u, err := url.Parse(ref); err == nil && strings.HasPrefix(u.Path, "/") {
+						target = u.Path
+					}
 				}
 			}
 			// Keep 200 for compatibility with migrated e2e tests; the browser
@@ -222,5 +226,56 @@ func queryBridge(mux *http.ServeMux, from, to string) http.HandlerFunc {
 		}
 		w.WriteHeader(res.StatusCode)
 		_, _ = w.Write(resBody)
+	}
+}
+
+// formSuccessTarget returns the canonical list page for CRUD forms. Without
+// this, a meta refresh back to the Referer would reload an edit form after a
+// successful save instead of returning to its list page.
+func formSuccessTarget(r *http.Request) string {
+	p := r.URL.Path
+	switch {
+	case strings.HasPrefix(p, "/admin/models/edit/"), p == "/admin/models/new", p == "/admin/models":
+		return "/admin/models"
+	case strings.HasPrefix(p, "/admin/api-keys"):
+		return "/admin/api-keys"
+	case strings.HasPrefix(p, "/admin/model-groups"):
+		return "/admin/model-groups"
+	case strings.HasPrefix(p, "/admin/users"):
+		return "/admin/users"
+	default:
+		return ""
+	}
+}
+
+// jsonBridge forwards an AJAX JSON request to the API and returns the raw
+// JSON response instead of wrapping it in an HTML meta-refresh page.
+func jsonBridge(mux *http.ServeMux, to string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		clone := r.Clone(r.Context())
+		u := *r.URL
+		u.Path = to
+		u.RawQuery = ""
+		clone.URL = &u
+		clone.Body = io.NopCloser(bytes.NewReader(body))
+		clone.ContentLength = int64(len(body))
+		clone.Header.Set("Content-Type", "application/json")
+
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, clone)
+		res := rec.Result()
+		defer res.Body.Close()
+		for k, vals := range res.Header {
+			for _, v := range vals {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(res.StatusCode)
+		_, _ = io.Copy(w, res.Body)
 	}
 }

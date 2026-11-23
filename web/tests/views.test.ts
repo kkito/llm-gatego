@@ -50,9 +50,12 @@ describe('original view fidelity', () => {
 
 describe('view interaction fidelity', () => {
   it('model form includes model-test panel for edit', () => {
-    const h = modelFormPage({ customModel: 'm1', realModel: 'gpt-4', provider: 'openai', baseUrl: 'http://x' }, [])
+    const h = modelFormPage({ customModel: 'm1', realModel: 'gpt-4', provider: 'openai', baseUrl: 'http://x', defaultParams: { temperature: 0.7 } }, [])
     expect(h).toContain('测试模型配置')
     expect(h).toContain("fetch('/admin/models/test'")
+    expect(h).toContain('&quot;temperature&quot;: 0.7')
+    expect(h).toContain('name="defaultParams" value="{')
+
     expect(modelFormPage(undefined, [])).not.toContain('模型测试')
   })
   it('stats page renders request details and pagination', () => {
