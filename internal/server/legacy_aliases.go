@@ -46,12 +46,11 @@ func RegisterLegacyFormAliases(mux *http.ServeMux) {
 	}
 
 	// Original model-group editor uses GET links for model membership changes.
-	getAliases := map[string]string{
-		"/admin/model-groups/edit/": "/api/admin/model-groups/edit/",
-	}
-	for from, to := range getAliases {
-		from, to := from, to
-		mux.HandleFunc("GET "+from, queryBridge(mux, from, to))
+	// Only these exact actions may be bridged; the plain edit page must fall
+	// through to the SPA shell or it redirects to itself forever.
+	for _, action := range []string{"add-model", "remove-model", "move-model"} {
+		action := action
+		mux.HandleFunc("GET /admin/model-groups/edit/{name}/"+action, groupActionBridge(mux, action))
 	}
 }
 
@@ -203,21 +202,24 @@ func normalizeFormPayload(p map[string]any) {
 	delete(p, "costMax")
 }
 
-// queryBridge handles the original GET links used by the model-group editor.
-func queryBridge(mux *http.ServeMux, from, to string) http.HandlerFunc {
+// groupActionBridge handles the original GET membership links used by the
+// model-group editor. It is registered only for actual action suffixes so a
+// plain GET /admin/model-groups/edit/{name} still renders the SPA page.
+func groupActionBridge(mux *http.ServeMux, action string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
 		payload := map[string]any{}
 		for k, vals := range r.URL.Query() {
 			payload[k] = formField(k, vals)
 		}
-		suffix := strings.TrimPrefix(r.URL.Path, from)
+		normalizeFormPayload(payload)
+		body, _ := json.Marshal(payload)
 		clone := r.Clone(r.Context())
 		u := *r.URL
-		u.Path = to + suffix
+		u.Path = "/api/admin/model-groups/edit/" + name + "/" + action
 		u.RawQuery = ""
 		clone.URL = &u
 		clone.Method = http.MethodPost
-		body, _ := json.Marshal(payload)
 		clone.Body = io.NopCloser(bytes.NewReader(body))
 		clone.ContentLength = int64(len(body))
 		clone.Header.Set("Content-Type", "application/json")
@@ -227,7 +229,7 @@ func queryBridge(mux *http.ServeMux, from, to string) http.HandlerFunc {
 		defer res.Body.Close()
 		resBody, _ := io.ReadAll(res.Body)
 		if res.StatusCode >= 200 && res.StatusCode < 300 {
-			http.Redirect(w, r, "/admin/model-groups/edit/"+strings.Split(strings.TrimPrefix(r.URL.Path, from), "/")[0], http.StatusSeeOther)
+			http.Redirect(w, r, "/admin/model-groups/edit/"+name, http.StatusSeeOther)
 			return
 		}
 		w.WriteHeader(res.StatusCode)

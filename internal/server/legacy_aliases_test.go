@@ -1,6 +1,7 @@
 package server
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -53,5 +54,57 @@ func TestFormBridgeModelTestReturnsJSON(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `"success":true`) {
 		t.Fatal(w.Body.String())
+	}
+}
+
+func TestGroupEditPageGETDoesNotLoop(t *testing.T) {
+	api := http.NewServeMux()
+	api.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("PAGE"))
+	})
+	api.HandleFunc("POST /api/admin/model-groups/edit/g1", func(w http.ResponseWriter, r *http.Request) {
+		okJSON(w, map[string]any{"ok": true})
+	})
+	mux := http.NewServeMux()
+	mux.Handle("/", api)
+	RegisterLegacyFormAliases(mux)
+
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/admin/model-groups/edit/g1", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if w.Body.String() != "PAGE" {
+		t.Fatalf("body=%s", w.Body.String())
+	}
+}
+
+func TestGroupActionGETStillBridgesToAPI(t *testing.T) {
+	var gotPath string
+	var gotBody string
+	api := http.NewServeMux()
+	api.HandleFunc("POST /api/admin/model-groups/edit/g1/add-model", func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+		okJSON(w, map[string]any{"ok": true})
+	})
+	mux := http.NewServeMux()
+	mux.Handle("/", api)
+	RegisterLegacyFormAliases(mux)
+
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/admin/model-groups/edit/g1/add-model?model=m2", nil))
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("Location"); got != "/admin/model-groups/edit/g1" {
+		t.Fatalf("location=%q", got)
+	}
+	if gotPath != "/api/admin/model-groups/edit/g1/add-model" {
+		t.Fatalf("path=%q", gotPath)
+	}
+	if !strings.Contains(gotBody, `"model":"m2"`) {
+		t.Fatalf("body=%s", gotBody)
 	}
 }
