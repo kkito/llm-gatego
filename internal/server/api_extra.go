@@ -174,21 +174,76 @@ func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
 		for k, a := range ua {
 			users[k] = map[string]any{"requests": a.requests}
 		}
-		// Original heatmap always returns a 182-day zero-filled series.
+		// Original heatmap always returns a 182-day zero-filled series, based on local-day token totals.
 		heatLoc, _ := time.LoadLocation(tz)
 		if heatLoc == nil {
 			heatLoc = time.UTC
 		}
 		today := time.Now().In(heatLoc)
+		heatmapStart := today.AddDate(0, 0, -(182 - 1))
+		heatmapStartStr := heatmapStart.Format("2006-01-02")
+		heatmapEndStr := today.Format("2006-01-02")
 		for i := 181; i >= 0; i-- {
 			d := today.AddDate(0, 0, -i).Format("2006-01-02")
 			if _, exists := byDate[d]; !exists {
 				byDate[d] = 0
 			}
 		}
+		heatFrom, _, err := localDayRangeTZ(heatmapStartStr, tz)
+		if err != nil {
+			fail(w, 400, err.Error())
+			return
+		}
+		_, heatTo, err := localDayRangeTZ(heatmapEndStr, tz)
+		if err != nil {
+			fail(w, 400, err.Error())
+			return
+		}
+		heatRows, err := dm.QueryRows(heatFrom, heatTo, 0)
+		if err != nil {
+			fail(w, 500, err.Error())
+			return
+		}
+		type heatAgg struct{ requests, totalTokens int64 }
+		heatTotals := map[string]*heatAgg{}
+		for _, row := range heatRows {
+			if userFilter != "" && row.UserName != userFilter {
+				continue
+			}
+			modelKey := row.CustomModel
+			if row.ModelGroup != "" {
+				modelKey = row.ModelGroup
+			}
+			if modelFilter != "" && modelKey != modelFilter {
+				continue
+			}
+			t, err := time.Parse(time.RFC3339, row.Timestamp)
+			if err != nil {
+				continue
+			}
+			day := t.In(heatLoc).Format("2006-01-02")
+			entry := heatTotals[day]
+			if entry == nil {
+				entry = &heatAgg{}
+				heatTotals[day] = entry
+			}
+			entry.requests++
+			entry.totalTokens += int64(ptrInt(row.TotalTokens))
+		}
+		dailyHeatmap := make([]map[string]any, 0, 182)
+		for i := 181; i >= 0; i-- {
+			d := today.AddDate(0, 0, -i).Format("2006-01-02")
+			entry := heatTotals[d]
+			requests, tokens := 0, 0
+			if entry != nil {
+				requests, tokens = int(entry.requests), int(entry.totalTokens)
+			}
+			dailyHeatmap = append(dailyHeatmap, map[string]any{"date": d, "requests": requests, "totalTokens": tokens})
+		}
 		payload := map[string]any{
 			"ok": true, "success": true,
 			"data": map[string]any{"dateRange": startDate + " ~ " + endDate, "overview": ov, "byModel": byModel, "byProvider": byProvider, "byHour": byHour, "byDate": byDate, "byUser": users,
+				"dailyHeatmap": dailyHeatmap, "heatmapStart": heatmapStartStr, "heatmapEnd": heatmapEndStr,
 				"totalRequests": ov.TotalRequests, "successfulRequests": ov.SuccessfulRequests, "failedRequests": ov.FailedRequests,
 				"totalInputTokens": ov.TotalInputTokens, "totalOutputTokens": ov.TotalOutputTokens, "totalTokens": ov.TotalTokens, "totalCachedTokens": ov.TotalCachedTokens},
 			"dateRange": startDate + " ~ " + endDate,

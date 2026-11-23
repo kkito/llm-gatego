@@ -202,3 +202,21 @@ describe('unified shell coverage for remaining pages', () => {
     }
   })
 })
+
+describe('stats daily heatmap', () => {
+  it('renders a compact GitHub-style heatmap instead of badge rows', () => {
+    const h = statsPage({
+      startDate: '2026-11-23', endDate: '2026-11-23', dateRange: '2026-11-23 ~ 2026-11-23',
+      totalRequests: 1, successfulRequests: 1, failedRequests: 0,
+      totalInputTokens: 10, totalOutputTokens: 20, totalTokens: 30, totalCachedTokens: 0, avgDuration: 0,
+      byModel: {}, byDate: { '2026-11-23': 1 }, byHour: {},
+      dailyHeatmap: [{ date: '2026-11-23', requests: 1, totalTokens: 30 }],
+      heatmapStart: '2026-11-23', heatmapEnd: '2026-11-23',
+    } as any)
+    expect(h).toContain('每日 Token 消耗')
+    expect(h).toContain('过去 1 天')
+    expect(h).toContain('heatmap-months')
+    expect(h).toContain('heatmap-cell')
+    expect(h).not.toContain('ui-badge title="2026-11-23: 1"')
+  })
+})

@@ -48,6 +48,7 @@
 .error-banner,.alert-error{background:#FEF2F2;border:1px solid #FECACA;color:#991B1B;border-radius:10px;padding:11px 14px;margin-bottom:16px}.success-banner,.alert-success{background:#ECFDF5;border:1px solid #A7F3D0;color:#065F46;border-radius:10px;padding:11px 14px;margin-bottom:16px}
 .section-title{font-size:14px;margin:18px 0 10px}.limits-table{width:100%;border-collapse:collapse}.limits-table th,.limits-table td{padding:10px 12px;border-bottom:1px solid var(--ui-line);text-align:left;font-size:13px}.limits-table th{color:var(--ui-muted);font-size:11px}.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .model-selector{display:grid;grid-template-columns:1fr 1fr;gap:14px}.model-list{min-height:180px;border:1px solid var(--ui-line);border-radius:10px;padding:12px;background:#FAFCFF}.model-list-title{font-size:13px;margin:0 0 10px}.model-list-empty{color:var(--ui-muted);font-size:12px}.checkbox-list{display:grid;gap:8px}.checkbox-item,.model-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--ui-line);border-radius:8px;background:#fff;font-size:13px}.model-item-name{flex:1}.model-item-desc{color:var(--ui-muted)}.model-actions{display:flex;gap:5px}.selected-index{color:var(--ui-muted);font-family:ui-monospace,monospace}.apikey-display{margin-bottom:14px}.apikey-label{display:block;font-size:12px;font-weight:800;margin-bottom:6px}.apikey-code{display:block;padding:10px;background:#F8FAFC;border:1px solid var(--ui-line);border-radius:8px;word-break:break-all}.apikey-note{font-size:11px;color:var(--ui-muted)}
+.heatmap-scroll{overflow-x:auto;padding-bottom:6px}.heatmap-grid{display:flex;gap:3px;min-width:660px}.heatmap-col{display:flex;flex-direction:column;gap:3px;flex:1 1 0;min-width:0}.heatmap-months{display:flex;gap:3px;min-width:660px}.heatmap-months>span{flex:1 1 0;min-width:0;overflow:hidden;white-space:nowrap;color:var(--ui-muted);font-size:11px}.heatmap-cell{display:block;width:100%;aspect-ratio:1/1;border-radius:2px;background:#ebedf0;min-width:0}.heatmap-legend{display:flex;align-items:center;gap:4px;margin-top:10px;color:var(--ui-muted);font-size:11px}.heatmap-legend .heatmap-cell{width:11px;height:11px;flex:none;aspect-ratio:auto}.heatmap-tip{position:fixed;z-index:9999;pointer-events:none;background:#101828;color:#fff;font-size:12px;padding:5px 8px;border-radius:6px;white-space:nowrap;display:none;box-shadow:0 6px 18px rgba(16,24,40,.22)}
 @media(max-width:820px){.model-selector{grid-template-columns:1fr}.form-card,.limits-card{padding:14px}.form-actions .btn,.btn-submit{min-height:44px}}
 `;
   function shell(opts) {
@@ -303,12 +304,39 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
       ["\u5E73\u5747\u5EF6\u8FDF", formatDuration(s.avgDuration), "\u6240\u6709\u8BF7\u6C42"]
     ].map(([label, value, sub]) => `<div class="ui-panel" style="margin:0;padding:16px 18px"><div class="ui-field-hint">${label}</div><div class="ui-mono" style="font-size:22px;font-weight:800;margin-top:4px">${value}</div><div class="ui-field-hint">${escapeHtml(sub)}</div></div>`).join("");
     const tokens = [["\u8F93\u5165", s.totalInputTokens], ["\u7F13\u5B58\u8F93\u5165", s.totalCachedTokens], ["\u8F93\u51FA", s.totalOutputTokens], ["\u603B\u8BA1", s.totalTokens]].map(([k, v]) => `<div><div class="ui-field-hint">${k}</div><div class="ui-mono" style="font-size:18px;font-weight:700">${formatNumber(v)}</div></div>`).join("");
-    const heat = Object.entries(s.byDate).map(([d, n]) => `<span class="ui-badge" title="${d}: ${n}">${d.slice(5)} \xB7 ${n}</span>`).join("");
+    const days = Array.isArray(s.dailyHeatmap) ? s.dailyHeatmap : [];
+    const maxTokens = Math.max(1, ...days.map((d) => d.totalTokens || 0));
+    const levelOf = (t) => t <= 0 ? 0 : t < maxTokens * 0.25 ? 1 : t < maxTokens * 0.5 ? 2 : t < maxTokens * 0.75 ? 3 : 4;
+    const colors = ["#ebedf0", "#9be9a8", "#40c463", "#30a14e", "#216e39"];
+    const start = /* @__PURE__ */ new Date(`${days[0]?.date || s.heatmapStart || s.startDate}T00:00:00`);
+    const leadBlanks = Number.isFinite(start.getTime()) ? start.getDay() : 0;
+    const cells = [];
+    for (let i = 0; i < leadBlanks; i++) cells.push({ key: `blank-${i}` });
+    days.forEach((d) => cells.push({ key: d.date, date: d.date, requests: d.requests, totalTokens: d.totalTokens }));
+    const weeks = [];
+    for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+    const monthLabels = [];
+    let lastMonth = "";
+    weeks.forEach((week, col) => {
+      const first = week.find((c) => c.date);
+      if (!first?.date) return;
+      const m = first.date.slice(0, 7);
+      if (m !== lastMonth) {
+        lastMonth = m;
+        monthLabels.push({ col, label: `${Number(first.date.slice(5, 7))}\u6708` });
+      }
+    });
+    const totalHeatTokens = days.reduce((sum, d) => sum + (d.totalTokens || 0), 0);
+    const rangeText = s.heatmapStart && s.heatmapEnd ? ` \xB7 ${s.heatmapStart} ~ ${s.heatmapEnd}` : "";
+    const heatmapHtml = days.length ? `<div class="stats-section-card"><h2 class="stats-section-title">\u{1F5D3}\uFE0F \u6BCF\u65E5 Token \u6D88\u8017</h2><div style="font-size:12px;color:var(--ui-muted);margin-bottom:10px">\u8FC7\u53BB ${days.length} \u5929 \xB7 \u5171 ${formatNumber(totalHeatTokens)} tokens${rangeText}</div><div class="heatmap-scroll"><div class="heatmap-months">${weeks.map((_, col) => {
+      const lbl = monthLabels.find((l) => l.col === col);
+      return `<span>${lbl ? lbl.label : ""}</span>`;
+    }).join("")}</div><div class="heatmap-grid" data-heatmap-grid>${weeks.map((week) => `<div class="heatmap-col">${week.map((c) => c.date ? `<span class="heatmap-cell" data-tip="${escapeHtml(`${c.date} \xB7 ${c.requests || 0} \u6B21\u8BF7\u6C42 \xB7 ${formatNumber(c.totalTokens || 0)} tokens`)}" style="background:${colors[levelOf(c.totalTokens || 0)]}"></span>` : '<span class="heatmap-cell" style="visibility:hidden"></span>').join("")}</div>`).join("")}</div><div class="heatmap-legend"><span>Less</span>${colors.map((c) => `<span class="heatmap-cell" style="background:${c}"></span>`).join("")}<span>More</span><span style="margin-left:8px">\u6DF1\u6D45\u6309\u5F53\u65E5 token \u91CF\u76F8\u5BF9\u6700\u5927\u503C\u5212\u5206</span></div></div></div>` : "";
     const models = Object.entries(s.byModel).map(([m, v]) => `<div class="ui-row" style="padding:8px 0;border-bottom:1px solid var(--ui-line)"><strong>${escapeHtml(m)}</strong><span class="ui-spacer"></span><span class="ui-mono">${formatNumber(v.requests)} \u8BF7\u6C42</span><span class="ui-field-hint">${formatNumber(v.totalTokens)} tokens</span></div>`).join("");
     const detailRows = (s.details || []).map((r) => `<tr><td>${new Date(r.timestamp).toLocaleString()}</td><td>${escapeHtml(r.userName || "-")}</td><td>${escapeHtml(r.customModel)}</td><td>${escapeHtml(r.modelGroup || "\u2014")}</td><td>${r.statusCode}</td><td>${formatDuration(r.durationMs)}</td><td>${r.ttftMs != null ? formatDuration(r.ttftMs) : "\u2014"}</td><td>${r.tps != null ? r.tps.toFixed(1) : "\u2014"}</td><td>${formatNumber(r.completionTokens)}</td></tr>`);
     const filter = `<form method="get" action="/admin/stats" class="ui-row" id="stats-filter-form"><input class="ui-input" style="width:auto" type="date" id="start" name="startDate" value="${s.startDate}"><input class="ui-input" style="width:auto" type="date" id="end" name="endDate" value="${s.endDate}"><input class="ui-input" style="width:150px" name="userName" placeholder="\u7528\u6237" value="${escapeHtml(s.userName || "")}"><input class="ui-input" style="width:180px" name="model" placeholder="\u6A21\u578B" value="${escapeHtml(s.model || "")}"><button class="ui-btn ui-btn-primary">\u67E5\u8BE2</button><button type="button" class="ui-btn" data-days="1">\u4ECA\u5929</button><button type="button" class="ui-btn" data-days="7">7\u5929</button><button type="button" class="ui-btn" data-days="30">30\u5929</button></form>`;
-    const body = pageHeader({ eyebrow: "Analytics", title: "\u7EDF\u8BA1 Dashboard", subtitle: `${escapeHtml(s.dateRange)} \xB7 \u5E73\u5747\u5EF6\u8FDF ${formatDuration(s.avgDuration)}` }) + filter + `<div style="height:14px"></div><div class="ui-grid ui-grid-auto">${cards}</div><div style="height:16px"></div>` + panel("Token \u7528\u91CF", "", `<div class="ui-grid ui-grid-auto">${tokens}</div>`) + panel("\u6BCF\u65E5\u6D88\u8017", "", `<div class="ui-row heatmap-grid">${heat || "\u6682\u65E0\u6570\u636E"}</div>`) + panel("\u6309\u6A21\u578B\u7EDF\u8BA1", "", models || "\u6682\u65E0\u6570\u636E") + ((s.details || []).length ? `<div class="pagination">${panel("\u6700\u8FD1\u8BF7\u6C42", `${s.details.length} \u6761`, table(["\u65F6\u95F4", "\u7528\u6237", "\u6A21\u578B", "\u5206\u7EC4", "\u72B6\u6001", "\u8017\u65F6", "TTFT", "TPS", "\u8F93\u51FA"], detailRows))}</div>` : "");
-    const script = `<script>document.querySelectorAll('[data-days]').forEach(function(b){b.addEventListener('click',function(){var d=parseInt(this.getAttribute('data-days'),10);var end=new Date();var start=new Date(end.getTime()-d*86400000);document.getElementById('start').value=start.toISOString().slice(0,10);document.getElementById('end').value=end.toISOString().slice(0,10);document.getElementById('stats-filter-form').submit()})})<\/script>`;
+    const body = pageHeader({ eyebrow: "Analytics", title: "\u7EDF\u8BA1 Dashboard", subtitle: `${escapeHtml(s.dateRange)} \xB7 \u5E73\u5747\u5EF6\u8FDF ${formatDuration(s.avgDuration)}` }) + filter + `<div style="height:14px"></div><div class="ui-grid ui-grid-auto">${cards}</div><div style="height:16px"></div>` + panel("Token \u7528\u91CF", "", `<div class="ui-grid ui-grid-auto">${tokens}</div>`) + heatmapHtml + panel("\u6309\u6A21\u578B\u7EDF\u8BA1", "", models || "\u6682\u65E0\u6570\u636E") + ((s.details || []).length ? `<div class="pagination">${panel("\u6700\u8FD1\u8BF7\u6C42", `${s.details.length} \u6761`, table(["\u65F6\u95F4", "\u7528\u6237", "\u6A21\u578B", "\u5206\u7EC4", "\u72B6\u6001", "\u8017\u65F6", "TTFT", "TPS", "\u8F93\u51FA"], detailRows))}</div>` : "");
+    const script = `<script>document.querySelectorAll('[data-days]').forEach(function(b){b.addEventListener('click',function(){var d=parseInt(this.getAttribute('data-days'),10);var end=new Date();var start=new Date(end.getTime()-d*86400000);document.getElementById('start').value=start.toISOString().slice(0,10);document.getElementById('end').value=end.toISOString().slice(0,10);document.getElementById('stats-filter-form').submit()})});(function(){var tip=document.createElement('div');tip.className='heatmap-tip';document.body.appendChild(tip);document.querySelectorAll('[data-heatmap-grid] .heatmap-cell[data-tip]').forEach(function(c){c.addEventListener('mouseenter',function(){tip.textContent=c.getAttribute('data-tip')||'';tip.style.display='block'});c.addEventListener('mousemove',function(e){tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY+12)+'px'});c.addEventListener('mouseleave',function(){tip.style.display='none'})})})()<\/script>`;
     return shell({ title: "\u7EDF\u8BA1 Dashboard", path: "/admin/stats", version, body, scripts: script });
   }
 
@@ -423,6 +451,9 @@ ${panel("\u53EF\u7528\u6A21\u578B", `${p.models.length} \u4E2A\u6A21\u578B / ${p
         byModel: d.byModel || {},
         byDate: d.byDate || {},
         byHour: d.byHour || {},
+        dailyHeatmap: d.dailyHeatmap || [],
+        heatmapStart: d.heatmapStart || "",
+        heatmapEnd: d.heatmapEnd || "",
         page: d.page,
         totalPages: d.totalPages,
         details: d.details || []

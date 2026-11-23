@@ -105,12 +105,25 @@ func TestStatsAPIHeatmap182Days(t *testing.T) {
 	}
 	var env struct {
 		Data struct {
-			ByDate map[string]int `json:"byDate"`
+			ByDate        map[string]int `json:"byDate"`
+			DailyHeatmap  []struct {
+				Date        string `json:"date"`
+				Requests    int    `json:"requests"`
+				TotalTokens int    `json:"totalTokens"`
+			} `json:"dailyHeatmap"`
+			HeatmapStart string `json:"heatmapStart"`
+			HeatmapEnd   string `json:"heatmapEnd"`
 		} `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &env)
 	if len(env.Data.ByDate) != 182 {
 		t.Fatal(len(env.Data.ByDate))
+	}
+	if len(env.Data.DailyHeatmap) != 182 {
+		t.Fatal(len(env.Data.DailyHeatmap))
+	}
+	if env.Data.HeatmapStart == "" || env.Data.HeatmapEnd == "" {
+		t.Fatalf("missing heatmap range: %+v", env.Data)
 	}
 }
 
