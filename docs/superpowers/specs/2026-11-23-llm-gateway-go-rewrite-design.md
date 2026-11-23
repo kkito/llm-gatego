@@ -170,17 +170,50 @@ daemon：fork 自身（或 `os.StartProcess`）、pidfile 检查（陈旧 pidfil
 - 所有单例提供 `ResetForTest`；测试间隔离临时目录；不依赖外部网络
 - 完成标准命令：`make test`（go test ./... -race）、`make web-test`（NODE_PATH=$(npm root -g) vitest run）、`make web-build`（esbuild + 类型检查）
 
-## 7. UML 图组（diagram-design skill 产出）
+## 7. UML / 图形文档全集（diagram-design skill 产出）
 
-单图复杂度预算 9 节点/12 连线，完整 UML 必须拆分：
-1. 组件/架构图：`cmd → server → proxy → 业务包 → config/store`，依赖方向
-2. UML 类图（配置域）：ProxyConfig、ProviderConfig、ModelLimit、ApiKey、UserApiKey、ModelGroup
-3. UML 类图（运行域）：Provider 接口族、FormatAdapter/StreamConverter、InterceptorManager、RateLimiter/UsageTracker、DatabaseManager/RequestLogger
-4. 时序图：代理请求完整链路（含 model group fallback、流式分支）
-5. 状态机图：流式转换器与请求生命周期状态
-6. ER 图：SQLite requests 表 + 索引
+用户明确要求：不只要类图，整个流程图、组件图、典型时序图都要画出来。按 diagram-design skill 的单图复杂度预算（≤9 节点/≤12 连线）拆分为多张自包含 HTML，保存到 `docs/uml/`。生成前需按 skill 规则确认/定制 style guide（当前为默认皮肤，届时会询问用户）。
 
-每张图为自包含 HTML（inline SVG、dark/light 主题、可移植），保存到 `docs/uml/`。生成前需按 skill 规则确认/定制 style guide（当前为默认皮肤，届时会询问用户）。
+### 7.1 组件图 / 架构图（Component & Architecture，共 4 张）
+
+1. **`01-system-context.html`** — 系统上下文：客户端（浏览器/CLI/SDK）→ llm-gatego → 上游 LLM API；鉴权、SQLite、日志文件作为外部边界；标出 trust boundary。
+2. **`02-component-overview.html`** — 顶层组件图：`cmd` → `server` → `proxy` → 业务包（converter/provider/limiter/modelgroup/interceptor/privacy）→ 基础设施（config/store/auth/logger）；依赖方向无环。
+3. **`03-component-runtime.html`** — 运行时组件图：HTTP Server、路由工厂、拦截器链、SSE 流处理器、RequestLogger 异步批写、Config Watcher、单例（UsageTracker/DatabaseManager）及其交互端口。
+4. **`04-deployment.html`** — 部署图：单二进制（Go embed web assets）运行形态、configDir 目录布局（config.json / gateway.db / logs）、daemon/pidfile、可选 nginx 反向代理。
+
+### 7.2 全流程图（Activity / Flowchart，共 7 张）
+
+5. **`10-request-lifecycle.html`** — 一个代理请求从进入到返回的完整活动流程（解析→鉴权→隐私→路由→转换→拦截→上游→响应→日志→错误映射）。
+6. **`11-model-resolution.html`** — 模型/模型组判定流程：单模型 vs model_group vs 智能识别；组不存在 / 字段互斥 / 404 分支。
+7. **`12-fallback-flow.html`** — 模型组 fallback：顺序探测限流 → triedModels → 成功返回 / 全部耗尽 429；含 rate limit 检查失败的处理。
+8. **`13-rate-limit-flow.html`** — 限流判定流程：limit type × period 分派、成本限制需价格配置、滑动窗口 vs 日/周/月计数器、超限 429。
+9. **`14-format-conversion-flow.html`** — 格式转换流程：`resolveConverterChain`、passthrough 判断、source→canonical→provider 的 request 与 response 两条路径。
+10. **`15-stream-processing-flow.html`** — SSE 流式处理流程：逐 chunk 读取 → StreamConverter.transform → 0..n 输出 → flush 收尾 → TTFT/TPS 统计 → 唯一日志写入。
+11. **`16-config-management-flow.html`** — 配置变更流程：admin API 写配置 / 手写 config.json → watcher → markSelfWrite 抑制 → 热更新 currentConfig getter → 模型删除/重命名的级联清理。
+
+### 7.3 时序图（Sequence，共 6 张典型场景）
+
+12. **`20-seq-single-model-nonstream.html`** — 单模型非流式请求：Client → Server → Auth → Handler → Limiter → Provider → Converter → Interceptor → Upstream → 日志 → 响应。
+13. **`21-seq-model-group-fallback.html`** — 模型组 fallback 时序：第一个模型超限 → 探测第二个成功 → 响应；含 triedModels 与 429 分支（alt fragment）。
+14. **`22-seq-streaming-sse.html`** — 流式请求时序：上游 SSE → 转换器状态机 → 客户端 SSE → 流结束 flush → TTFT/TPS → SQLite 批写；含中断/超时分支。
+15. **`23-seq-admin-config.html`** — admin 管理操作时序：登录 session → 修改模型 → config-operations 级联清理 → saveConfig → watcher 热更新 → 统计页面刷新。
+16. **`24-seq-user-auth.html`** — user API Key 鉴权时序：Bearer/x-api-key/session 三种入口 → 用户解析 → allowedModels 拦截 → 403/401 分支。
+17. **`25-seq-request-logging.html`** — 日志异步写时序：Handler → RequestLogger 入队（100ms tick / 500 上限）→ 去重 → 批量 INSERT → 90 天清理 → 统计 API 查询。
+
+### 7.4 UML 类图（Class，共 4 张）
+
+18. **`30-class-config.html`** — 配置域：ProxyConfig、ProviderConfig、ModelLimit、ApiKey、UserApiKey、ModelGroup、PrivacySettings + config 操作函数（以 operation 形式呈现）。
+19. **`31-class-converter.html`** — 转换域：FormatAdapter «interface»、StreamConverter «interface»、ChatAdapter/AnthropicAdapter/ResponsesAdapter（realization）、ResolveConverterChain、canonical 类型。
+20. **`32-class-runtime.html`** — 运行域：Provider 接口族（BaseProvider / OpenAI / Anthropic / ResponseApi）、InterceptorManager/UpstreamInterceptor、RateLimiter/UsageTracker、ModelGroupResolver。
+21. **`33-class-store.html`** — 持久化与日志域：DatabaseManager、RequestLogger、Logger、DetailLogger、SQLite requests 表映射。
+
+### 7.5 状态机图与 ER 图（共 3 张）
+
+22. **`40-state-request.html`** — 请求生命周期状态：Received → Authenticated → Resolved → RateChecked → UpstreamPending → Streaming/Completed / Failed / TimedOut / RateLimited。
+23. **`41-state-stream-converter.html`** — 流式转换器状态机：WaitingMessageStart → InContentBlock → InToolUse → Flushing → Done，含异常复位。
+24. **`50-er-sqlite.html`** — SQLite ER：requests 表 24 列、5 个索引、字段类型/约束与 drizzle migration 的对应关系。
+
+合计 24 张图，覆盖上下文、组件、部署、流程、时序、类、状态、ER 全部 UML/系统图视角；每张遵守复杂度预算，必要时 overview+detail 拆分。
 
 ## 8. 实施阶段（供 writing-plans 细化）
 
