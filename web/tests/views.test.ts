@@ -153,7 +153,7 @@ describe('console shell redesign', () => {
     expect(h).toContain('max-width:1180px!important')
     expect(h).toContain('@media (max-width:768px)')
     expect(h).toContain('overflow-x:auto')
-    expect(h).toContain('--gw-signal:#2DD4BF')
+    expect(h).toContain('--gw-bg:#F5F7FA')
     expect(h).toContain('prefers-reduced-motion')
     expect(h).toContain('min-height:44px')
   })
