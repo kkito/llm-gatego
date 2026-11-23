@@ -161,8 +161,8 @@ func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
 			users[k] = map[string]any{"requests": a.requests}
 		}
 		payload := map[string]any{
-			"success": true,
-			"data": map[string]any{"overview": ov, "byModel": byModel, "byProvider": byProvider, "byHour": byHour, "byDate": byDate, "byUser": users,
+			"ok": true, "success": true,
+			"data": map[string]any{"dateRange": startDate + " ~ " + endDate, "overview": ov, "byModel": byModel, "byProvider": byProvider, "byHour": byHour, "byDate": byDate, "byUser": users,
 				"totalRequests": ov.TotalRequests, "successfulRequests": ov.SuccessfulRequests, "failedRequests": ov.FailedRequests,
 				"totalInputTokens": ov.TotalInputTokens, "totalOutputTokens": ov.TotalOutputTokens, "totalTokens": ov.TotalTokens, "totalCachedTokens": ov.TotalCachedTokens},
 			"dateRange": startDate + " ~ " + endDate,

@@ -40,3 +40,5 @@
 - [ ] Remaining: full interactive parity (model-test execution, detail-log polling, heatmap timezone, pagination, form validation/messages), exact API response shapes for stats/user pages, and migration of original view/e2e tests beyond smoke-level.
 - [x] P3: original form POST URLs aliased to Go JSON endpoints (`legacy_aliases.go`); full user stats aggregation implemented.
 - [ ] Remaining P4: model-test UI execution, detail-log polling, pagination, exact form validation messages, and original view/e2e test migration.
+- [x] P4 partial: model-form now includes original model-test UI calling `/admin/models/test`; stats API envelope aligned with frontend (`ok`+`success`).
+- [ ] Remaining P5: stats detail log pagination, admin detail-log polling endpoint, exact timezone handling, and view/e2e test migration.
