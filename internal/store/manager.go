@@ -155,12 +155,24 @@ func (dm *DatabaseManager) QueryRows(from, to string, limit int) ([]RequestLogEn
 	out := []RequestLogEntry{}
 	for rows.Next() {
 		var e RequestLogEntry
+		var userName, clientIP, customModel, realModel, prov, mg, actual, endpoint, errMsg, errType, metadata sql.NullString
 		var stream int
 		var ttft, prompt, completion, total, cached sql.NullInt64
 		var tps sql.NullFloat64
-		if err := rows.Scan(&e.RequestID, &e.Timestamp, &e.CreatedAt, &e.UserName, &e.ClientIP, &e.CustomModel, &e.RealModel, &e.Provider, &e.ModelGroup, &e.ActualModel, &e.Endpoint, &e.StatusCode, &e.DurationMs, &stream, &ttft, &tps, &prompt, &completion, &total, &cached, &e.ErrorMessage, &e.ErrorType, &e.ResponseMetadata); err != nil {
+		if err := rows.Scan(&e.RequestID, &e.Timestamp, &e.CreatedAt, &userName, &clientIP, &customModel, &realModel, &prov, &mg, &actual, &endpoint, &e.StatusCode, &e.DurationMs, &stream, &ttft, &tps, &prompt, &completion, &total, &cached, &errMsg, &errType, &metadata); err != nil {
 			return nil, err
 		}
+		e.UserName = userName.String
+		e.ClientIP = clientIP.String
+		e.CustomModel = customModel.String
+		e.RealModel = realModel.String
+		e.Provider = prov.String
+		e.ModelGroup = mg.String
+		e.ActualModel = actual.String
+		e.Endpoint = endpoint.String
+		e.ErrorMessage = errMsg.String
+		e.ErrorType = errType.String
+		e.ResponseMetadata = metadata.String
 		e.IsStreaming = stream != 0
 		if ttft.Valid {
 			v := int(ttft.Int64)
