@@ -33,3 +33,8 @@
 
 - [ ] 修正 `docs/test-migration-map.md` 虚标状态
 - [ ] 补齐 admin/user 视图与 e2e 用例
+
+## Progress updates (P1/P2)
+- [x] P1: API surface completed and committed (`af3584d`): stats, usage, limits, announcement, groups, users, keys, user config/stats.
+- [x] P2 partial: original CSS extracted from all 17 view files into `web/src/styles/*.ts`; Chinese UI view renderers added for all 14 admin + 3 user views; shared TopbarNav layout; admin/user URL routing via shell + `admin.js`; 32 web tests.
+- [ ] Remaining: full interactive parity (model-test execution, detail-log polling, heatmap timezone, pagination, form validation/messages), exact API response shapes for stats/user pages, and migration of original view/e2e tests beyond smoke-level.

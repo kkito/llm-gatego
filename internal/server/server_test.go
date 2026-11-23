@@ -21,7 +21,7 @@ func TestServerAssembly(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest("GET", "/", nil))
-	if w.Code != 200 || !strings.Contains(w.Body.String(), "LLM GateGo") {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), "LLM Gateway") {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	w = httptest.NewRecorder()
@@ -42,5 +42,17 @@ func TestServerAssembly(t *testing.T) {
 	h.ServeHTTP(w, httptest.NewRequest("GET", "/api/unknown", nil))
 	if w.Code != 404 {
 		t.Fatal(w.Code)
+	}
+}
+
+func TestViewRoutesServeShell(t *testing.T) {
+	cfgDir := t.TempDir()
+	h := New(&config.ProxyConfig{}, proxy.Dependencies{}, config.ConfigContext{ConfigDir: cfgDir}, Options{})
+	for _, p := range []string{"/admin/models", "/admin/stats", "/user/main", "/user/stats", "/admin/login"} {
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, httptest.NewRequest("GET", p, nil))
+		if w.Code != 200 || !strings.Contains(w.Body.String(), "admin.js") {
+			t.Fatal(p, w.Code, w.Body.String())
+		}
 	}
 }

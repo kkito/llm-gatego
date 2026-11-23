@@ -1,15 +1,16 @@
-// Placeholder; full esbuild bundle added in Task 15.
 const esbuild = require('esbuild');
 const fs = require('fs');
 
-if (!fs.existsSync('web/src/app.ts')) {
-  console.log('web/src/app.ts not found yet — skipping build (added in Task 15)');
-  process.exit(0);
+const entries = [
+  ['web/src/app.ts', 'web/dist/assets/app.js'],
+  ['web/src/admin.ts', 'web/dist/assets/admin.js'],
+];
+for (const [entry, out] of entries) {
+  esbuild.buildSync({ entryPoints: [entry], bundle: true, format: 'iife', outfile: out, target: 'es2020' });
 }
-esbuild.buildSync({
-  entryPoints: ['web/src/app.ts'], bundle: true, format: 'iife',
-  globalName: 'GwWeb', outfile: 'web/dist/assets/app.js', target: 'es2020',
-});
+fs.mkdirSync('web/dist', { recursive: true });
+fs.copyFileSync('web/index.html', 'web/dist/index.html');
+if (fs.existsSync('web/style.css')) fs.copyFileSync('web/style.css', 'web/dist/style.css');
 fs.mkdirSync('internal/server/dist/assets', { recursive: true });
 for (const name of fs.readdirSync('web/dist')) {
   const src = 'web/dist/' + name;

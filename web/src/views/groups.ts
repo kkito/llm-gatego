@@ -1,0 +1,10 @@
+import { escapeHtml } from '../format.js'
+import { css } from '../styles/admin_model_groups.js'
+import { adminPage } from './layout.js'
+export interface GroupView { name: string; desc?: string; models: string[] }
+export function groupsPage(groups: GroupView[], error?: string, success?: string, version = '1.15.0'): string {
+  const body = `<div class="page-header"><div><h1 class="page-title">Model Groups</h1><p class="page-subtitle">管理模型分组配置</p></div><div class="btn-group"><a href="/admin/models" class="btn btn-secondary">← 返回模型列表</a><a href="/admin/model-groups/new" class="btn btn-primary">+ 新建分组</a></div></div>
+${error ? `<div class="error-banner">${escapeHtml(error)}</div>` : ''}${success ? `<div class="success-banner">${escapeHtml(success)}</div>` : ''}
+${groups.length === 0 ? `<div class="empty-state"><div class="empty-state-icon">📦</div><h3>暂无 Model Group</h3><a href="/admin/model-groups/new" class="btn btn-primary">新建分组</a></div>` : `<div class="groups-grid">${groups.map(g => `<div class="group-card"><div class="group-card-header"><div class="group-info"><div class="group-icon">📦</div><div><div class="group-name">${escapeHtml(g.name)}</div><div class="group-models-count">${g.models.length} 个模型</div></div></div><div class="group-actions"><a href="/admin/model-groups/edit/${encodeURIComponent(g.name)}" class="btn btn-icon btn-secondary" title="编辑">✏️</a></div></div>${g.desc ? `<div class="group-desc">${escapeHtml(g.desc)}</div>` : ''}<div class="models-list">${g.models.slice(0, 5).map(m => `<a class="model-tag" href="/admin/models/edit/${encodeURIComponent(m)}" title="编辑模型">${escapeHtml(m)}</a>`).join('')}${g.models.length > 5 ? `<span class="model-tag">+${g.models.length - 5}</span>` : ''}</div><div class="group-card-actions"><a href="/admin/model-groups/edit/${encodeURIComponent(g.name)}" class="btn btn-secondary btn-sm">管理模型</a><form method="POST" action="/admin/model-groups/delete/${encodeURIComponent(g.name)}" style="display:inline"><button type="submit" class="btn btn-sm btn-delete">删除</button></form></div></div>`).join('')}</div>`}`
+  return adminPage('Model Groups', '/admin/model-groups', body, css, version)
+}
