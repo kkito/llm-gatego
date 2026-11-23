@@ -12,7 +12,7 @@ import (
 	"sync"
 )
 
-//go:embed dist/*
+//go:embed all:dist
 var distFS embed.FS
 
 type Options struct {
@@ -44,7 +44,7 @@ func New(cfg *config.ProxyConfig, deps proxy.Dependencies, ctx config.ConfigCont
 	proxy.RegisterRoutes(mux, deps)
 	assets, err := fs.Sub(distFS, "dist")
 	if err == nil {
-		mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServer(http.FS(assets))))
+		mux.Handle("GET /assets/", http.FileServer(http.FS(assets)))
 	}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {

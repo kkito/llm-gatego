@@ -68,3 +68,9 @@ func TestLegacyFormAlias(t *testing.T) {
 		t.Fatal("legacy alias unexpectedly 404")
 	}
 }
+
+func TestAssetsServed(t *testing.T) {
+	mux := New(&config.ProxyConfig{}, proxy.Dependencies{}, config.ConfigContext{}, Options{})
+	w := httptest.NewRecorder(); mux.ServeHTTP(w, httptest.NewRequest("GET", "/assets/admin.js", nil))
+	if w.Code != 200 { t.Fatal(w.Code, w.Body.String()) }
+}
