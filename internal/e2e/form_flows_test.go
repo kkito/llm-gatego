@@ -280,8 +280,8 @@ func TestE2EModelCreateFormSavedKeySelection(t *testing.T) {
 }
 
 func TestE2EModelGroupCreateThenAddModelFlow(t *testing.T) {
-	mux, path := newFullServer(t, &config.ProxyConfig{Models: []config.ProviderConfig{{CustomModel: "m1", RealModel: "r1", BaseURL: "http://x", Provider: config.ProviderOpenAI, APIKey: "k"}}})
-	w := postForm(t, mux, "/admin/model-groups", url.Values{"name": {"flow"}, "desc": {"test"}})
+	mux, _ := newFullServer(t, &config.ProxyConfig{Models: []config.ProviderConfig{{CustomModel: "m1", RealModel: "r1", BaseURL: "http://x", Provider: config.ProviderOpenAI, APIKey: "k"}}})
+	w := postForm(t, mux, "/admin/model-groups", url.Values{"name": {"flow"}, "desc": {"test"}, "models": {`["m1"]`}})
 	if w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
@@ -298,17 +298,19 @@ func TestE2EModelGroupCreateThenAddModelFlow(t *testing.T) {
 		} `json:"data"`
 	}
 	json.Unmarshal(w.Body.Bytes(), &env)
-	if len(env.Data) != 1 || env.Data[0].Name != "flow" || env.Data[0].Models == nil || len(env.Data[0].Models) != 0 {
+	if len(env.Data) != 1 || env.Data[0].Name != "flow" || len(env.Data[0].Models) != 1 || env.Data[0].Models[0] != "m1" {
 		t.Fatal(string(w.Body.Bytes()))
 	}
-	r = httptest.NewRequest("GET", "/admin/model-groups/edit/flow/add-model?model=m1", nil)
-	w = httptest.NewRecorder()
-	mux.ServeHTTP(w, r)
-	if w.Code != 200 && w.Code != 303 {
+}
+
+func TestE2EModelGroupCreateRequiresModel(t *testing.T) {
+	mux, path := newFullServer(t, &config.ProxyConfig{Models: []config.ProviderConfig{{CustomModel: "m1", RealModel: "r1", BaseURL: "http://x", Provider: config.ProviderOpenAI, APIKey: "k"}}})
+	w := postForm(t, mux, "/admin/model-groups", url.Values{"name": {"empty"}, "desc": {"test"}, "models": {`[]`}})
+	if w.Code != 400 || !strings.Contains(w.Body.String(), "请至少选择一个模型") {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	loaded := load(t, path)
-	if len(loaded.ModelGroups) != 1 || len(loaded.ModelGroups[0].Models) != 1 || loaded.ModelGroups[0].Models[0] != "m1" {
-		t.Fatalf("%+v", loaded.ModelGroups)
+	if len(loaded.ModelGroups) != 0 {
+		t.Fatalf("group should not be saved: %+v", loaded.ModelGroups)
 	}
 }

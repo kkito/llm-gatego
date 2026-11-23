@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -290,6 +291,14 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 	mux.HandleFunc("POST /api/admin/model-groups", func(w http.ResponseWriter, r *http.Request) {
 		var in config.ModelGroup
 		if !readJSON(w, r, &in) {
+			return
+		}
+		if !regexp.MustCompile(`^[-a-zA-Z0-9_.]+$`).MatchString(in.Name) {
+			fail(w, 400, "组名只能包含字母、数字、下划线、中划线、点")
+			return
+		}
+		if len(in.Models) == 0 {
+			fail(w, 400, "请至少选择一个模型")
 			return
 		}
 		cfg, err := d.load()

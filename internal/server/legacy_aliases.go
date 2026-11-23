@@ -140,6 +140,12 @@ func htmlEscape(s string) string {
 func formField(key string, vals []string) any {
 	arrayFields := map[string]bool{"allowedModels": true, "models": true}
 	if arrayFields[key] {
+		if len(vals) == 1 {
+			var arr []string
+			if json.Unmarshal([]byte(vals[0]), &arr) == nil {
+				return arr
+			}
+		}
 		out := []string{}
 		for _, v := range vals {
 			if strings.TrimSpace(v) != "" {

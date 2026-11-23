@@ -171,3 +171,12 @@ describe('per-page styling layer', () => {
     expect(h).toContain('.model-selector')
   })
 })
+
+
+it('group create form submits selected models', () => {
+  const h = groupFormPage(undefined, [{ customModel: 'm1' }, { customModel: 'm2' }])
+  expect(h).toContain('name="models"')
+  expect(h).toContain('name="modelCheckbox"')
+  expect(h).toContain('value="m1"')
+  expect(h).toContain('input[name="models"]')
+})
