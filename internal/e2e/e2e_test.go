@@ -203,3 +203,18 @@ func TestE2EModelDeleteCleanup(t *testing.T) {
 	if len(out.ModelGroups) != 1 || out.ModelGroups[0].Name != "gpt-pool" { t.Fatal(out.ModelGroups) }
 	if len(out.UserApiKeys[0].AllowedModels) != 0 { t.Fatal(out.UserApiKeys) }
 }
+
+func TestE2EPageAuthRedirects(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &config.ProxyConfig{AdminPassword: "secret", UserApiKeys: []config.UserApiKey{{Name: "u", APIKey: "sk-u"}}}
+	b, _ := json.Marshal(cfg)
+	path := filepath.Join(dir, "config.json")
+	os.WriteFile(path, b, 0644)
+	mux := server.New(cfg, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir, ConfigPath: path}, server.Options{})
+	w := call(t, mux, "GET", "/admin/models", "", nil)
+	if w.Code != 302 || w.Header().Get("Location") != "/admin/login" { t.Fatal(w.Code, w.Header().Get("Location")) }
+	w = call(t, mux, "GET", "/user/main", "", nil)
+	if w.Code != 302 || w.Header().Get("Location") != "/user/login" { t.Fatal(w.Code, w.Header().Get("Location")) }
+	w = call(t, mux, "GET", "/admin/login", "", nil)
+	if w.Code != 200 { t.Fatal(w.Code) }
+}

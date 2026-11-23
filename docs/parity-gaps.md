@@ -50,3 +50,5 @@
 - [ ] Still open: remaining original e2e/unit cases, exact CSS class-by-class fidelity, cookie/auth middleware details.
 - [x] P8: defaultParams deep-merge (user wins, extra_body deep merge) implemented and e2e-tested; model-delete cleanup e2e migrated; DST test.
 - [ ] Still open: remaining 15+ e2e files' cases, full admin auth/user auth e2e, exact CSS fidelity.
+- [x] P9: page-level admin/user auth redirects (302 to login), auth-status API, login setup text parity, e2e test.
+- [ ] Still open: remaining e2e/unit cases, exact CSS fidelity.

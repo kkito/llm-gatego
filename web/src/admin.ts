@@ -44,7 +44,7 @@ export const renderers: Record<string, PageRenderer> = {
       page: d.page, totalPages: d.totalPages, details: d.details || [],
     })
   },
-  '/admin/login': () => adminLoginPage(false),
+  '/admin/login': async () => adminLoginPage(!(await api<any>('/api/admin/auth-status')).data?.passwordConfigured),
   '/user/login': () => userLoginPage(),
   '/user/main': async () => {
     const d = (await api<any>('/api/user/config')).data || {}

@@ -136,3 +136,12 @@ describe('original users-page view assertions', () => {
     expect(many).toContain('等2个模型'); expect(many).not.toContain('m4'); expect(many).not.toContain('m5')
   })
 })
+
+describe('original admin-auth view assertions', () => {
+  it('setup page shows setup text, login page shows login', () => {
+    const setup = adminLoginPage(true)
+    expect(setup).toContain('设置管理员密码')
+    expect(setup).not.toContain('>登录<')
+    expect(adminLoginPage(false)).toContain('管理员登录')
+  })
+})

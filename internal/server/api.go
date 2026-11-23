@@ -381,6 +381,11 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 		}
 		okJSON(w, in)
 	})
+	mux.HandleFunc("GET /api/admin/auth-status", func(w http.ResponseWriter, r *http.Request) {
+		cfg, err := d.load()
+		if err != nil { fail(w, 500, err.Error()); return }
+		okJSON(w, map[string]any{"passwordConfigured": auth.IsPasswordConfigured(cfg)})
+	})
 	mux.HandleFunc("POST /api/admin/password", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
 			Password string `json:"password"`

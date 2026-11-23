@@ -263,7 +263,7 @@ ${(s.details || []).length ? `<div class="stats-section-card"><h2 class="stats-s
 
   // web/src/views/login.ts
   function adminLoginPage(isSetup, error) {
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7BA1\u7406\u5458\u767B\u5F55 - LLM Gateway</title><style>${adminLoginCSS}</style></head><body><div class="login-card"><h1 class="login-title">\u{1F510} \u7BA1\u7406\u5458\u767B\u5F55</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}${isSetup ? '<div class="alert alert-warning">\u9996\u6B21\u4F7F\u7528\u8BF7\u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801</div>' : ""}<form method="POST" action="/api/admin/login"><div class="form-group"><label class="form-label" for="password">\u5BC6\u7801</label><input class="form-input" type="password" id="password" name="password" placeholder="\u8BF7\u8F93\u5165\u5BC6\u7801" required></div><button type="submit" class="btn btn-primary">\u767B\u5F55</button></form></div></body></html>`;
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7BA1\u7406\u5458\u767B\u5F55 - LLM Gateway</title><style>${adminLoginCSS}</style></head><body><div class="login-card"><h1 class="login-title">${isSetup ? "\u{1F510} \u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801" : "\u{1F510} \u7BA1\u7406\u5458\u767B\u5F55"}</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}${isSetup ? '<div class="alert alert-warning">\u9996\u6B21\u4F7F\u7528\u8BF7\u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801</div>' : ""}<form method="POST" action="/api/admin/login"><div class="form-group"><label class="form-label" for="password">\u5BC6\u7801</label><input class="form-input" type="password" id="password" name="password" placeholder="\u8BF7\u8F93\u5165\u5BC6\u7801" required></div><button type="submit" class="btn btn-primary">${isSetup ? "\u8BBE\u7F6E\u5BC6\u7801" : "\u767B\u5F55"}</button></form></div></body></html>`;
   }
   function userLoginPage(error) {
     return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7528\u6237\u767B\u5F55 - LLM Gateway</title><style>${css12}</style></head><body><div class="login-card"><h1>\u7528\u6237\u767B\u5F55</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}<form method="POST" action="/api/user/login"><div class="form-group"><label for="apikey">API Key</label><input type="password" id="apikey" name="apikey" placeholder="\u8BF7\u8F93\u5165 API Key" required></div><button type="submit" class="btn btn-primary">\u767B\u5F55</button></form></div></body></html>`;
@@ -780,7 +780,7 @@ ${isEdit ? `<div class="apikey-display"><label class="apikey-label">API Key</lab
         details: d.details || []
       });
     },
-    "/admin/login": () => adminLoginPage(false),
+    "/admin/login": async () => adminLoginPage(!(await api("/api/admin/auth-status")).data?.passwordConfigured),
     "/user/login": () => userLoginPage(),
     "/user/main": async () => {
       const d = (await api("/api/user/config")).data || {};

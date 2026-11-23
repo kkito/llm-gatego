@@ -2,6 +2,7 @@ package server
 
 import (
 	"embed"
+	"github.com/kkito/llm-gatego/internal/auth"
 	"github.com/kkito/llm-gatego/internal/config"
 	"github.com/kkito/llm-gatego/internal/proxy"
 	"github.com/kkito/llm-gatego/internal/util"
@@ -47,6 +48,25 @@ func New(cfg *config.ProxyConfig, deps proxy.Dependencies, ctx config.ConfigCont
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
 			return
+		}
+		// Original v1.15.0 page-level auth: redirect to login instead of JSON 401.
+		pageCfg := deps.ConfigGetter()
+		if strings.HasPrefix(r.URL.Path, "/admin/") && r.URL.Path != "/admin/login" {
+			if pageCfg != nil && auth.IsPasswordConfigured(pageCfg) {
+				id := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+				if id == "" { id = r.URL.Query().Get("session") }
+				if id == "" { if c, err := r.Cookie("session"); err == nil { id = c.Value } }
+				if id == "" || !auth.HasSession(id) {
+					http.Redirect(w, r, "/admin/login", http.StatusFound)
+					return
+				}
+			}
+		}
+		if (r.URL.Path == "/user/main" || r.URL.Path == "/user/stats") && pageCfg != nil && len(pageCfg.UserApiKeys) > 0 {
+			if auth.GetCurrentUser(r, pageCfg) == nil {
+				http.Redirect(w, r, "/user/login", http.StatusFound)
+				return
+			}
 		}
 		b, err := fs.ReadFile(distFS, "dist/index.html")
 		if err != nil {
