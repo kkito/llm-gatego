@@ -1,0 +1,87 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build release binaries
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release commit is on main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          if ! git branch -r --contains "$GITHUB_SHA" | grep -q 'origin/main'; then
+            echo "Release commit $GITHUB_SHA is not reachable from origin/main"
+            exit 1
+          fi
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install web tools
+        run: npm install -g esbuild typescript vitest
+
+      - name: Run Go tests
+        run: go test ./...
+
+      - name: Run web tests
+        shell: bash
+        run: |
+          cd web
+          NODE_PATH=$(npm root -g) vitest run
+
+      - name: Build web assets
+        shell: bash
+        run: NODE_PATH=$(npm root -g) node scripts/build_web.cjs
+
+      - name: Build release binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o dist/llm-gatego-linux-amd64 ./cmd/llm-gatego
+          CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o dist/llm-gatego-darwin-amd64 ./cmd/llm-gatego
+          CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o dist/llm-gatego-darwin-arm64 ./cmd/llm-gatego
+
+      - name: Verify binary version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#v}"
+          GOT="$(dist/llm-gatego-linux-amd64 -version)"
+          EXPECTED="llm-gatego ${VERSION}"
+          if [ "$GOT" != "$EXPECTED" ]; then
+            echo "version mismatch: got '$GOT', expected '$EXPECTED'"
+            exit 1
+          fi
+
+      - name: Upload binaries to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            dist/llm-gatego-linux-amd64
+            dist/llm-gatego-darwin-amd64
+            dist/llm-gatego-darwin-arm64
