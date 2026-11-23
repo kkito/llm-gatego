@@ -37,6 +37,7 @@ export const renderers: Record<string, PageRenderer> = {
       totalInputTokens: d.totalInputTokens || 0, totalOutputTokens: d.totalOutputTokens || 0,
       totalTokens: d.totalTokens || 0, totalCachedTokens: d.totalCachedTokens || 0, avgDuration: d.avgDuration || 0,
       byModel: d.byModel || {}, byDate: d.byDate || {}, byHour: d.byHour || {},
+      page: d.page, totalPages: d.totalPages, details: d.details || [],
     })
   },
   '/admin/login': () => adminLoginPage(false),

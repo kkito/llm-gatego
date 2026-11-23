@@ -42,3 +42,5 @@
 - [ ] Remaining P4: model-test UI execution, detail-log polling, pagination, exact form validation messages, and original view/e2e test migration.
 - [x] P4 partial: model-form now includes original model-test UI calling `/admin/models/test`; stats API envelope aligned with frontend (`ok`+`success`).
 - [ ] Remaining P5: stats detail log pagination, admin detail-log polling endpoint, exact timezone handling, and view/e2e test migration.
+- [x] P5: stats detail log table + pagination in admin stats view/API.
+- [ ] Remaining P6: admin detail-log polling endpoint, exact timezone/cookie handling, complete view/e2e test migration.

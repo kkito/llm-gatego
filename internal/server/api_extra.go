@@ -99,6 +99,11 @@ func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
 		type agg struct{ requests, successful, failed, in, out, total, cached int64 }
 		ma := map[string]*agg{}
 		ua := map[string]*agg{}
+		type detailRow struct { Timestamp, UserName, CustomModel, ModelGroup string; StatusCode, DurationMs int; TTFTMs any; TPS any; CompletionTokens, PromptTokens, CachedTokens int }
+		details := []detailRow{}
+		page, _ := strconv.Atoi(q.Get("page"))
+		if page < 1 { page = 1 }
+		const pageSize = 20
 		for _, row := range rows {
 			if userFilter != "" && row.UserName != userFilter {
 				continue
@@ -137,6 +142,7 @@ func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
 			a.total += int64(total)
 			a.cached += int64(cached)
 			byProvider[row.Provider]++
+			details = append(details, detailRow{Timestamp: row.Timestamp, UserName: row.UserName, CustomModel: row.CustomModel, ModelGroup: row.ModelGroup, StatusCode: row.StatusCode, DurationMs: int(row.DurationMs), TTFTMs: row.TTFTMs, TPS: row.TPS, CompletionTokens: ptrInt(row.CompletionTokens), PromptTokens: ptrInt(row.PromptTokens), CachedTokens: ptrInt(row.CachedTokens)})
 			t, err := time.Parse(time.RFC3339, row.Timestamp)
 			if err == nil {
 				loc, _ := time.LoadLocation(tz)
@@ -166,6 +172,8 @@ func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
 				"totalRequests": ov.TotalRequests, "successfulRequests": ov.SuccessfulRequests, "failedRequests": ov.FailedRequests,
 				"totalInputTokens": ov.TotalInputTokens, "totalOutputTokens": ov.TotalOutputTokens, "totalTokens": ov.TotalTokens, "totalCachedTokens": ov.TotalCachedTokens},
 			"dateRange": startDate + " ~ " + endDate,
+			"page": page, "totalPages": (len(details) + pageSize - 1) / pageSize,
+			"details": func() []detailRow { start := (page-1)*pageSize; if start > len(details) { return []detailRow{} }; end := start+pageSize; if end > len(details) { end = len(details) }; return details[start:end] }(),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(payload)
