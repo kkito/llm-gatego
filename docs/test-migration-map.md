@@ -1,3 +1,5 @@
+> **⚠️ 诚实状态（2026-11-23）**：本表中早期标记为「语义对齐/已覆盖」的条目大量只是 smoke/结构测试，并不等价于原版 118 个测试文件 / 1382 个 case 的完整迁移。真实缺口见 `docs/parity-gaps.md`。请勿把本表视为完成度证明。
+
 # 测试迁移对照表
 
 源文件：`llm-gateway/tests/*.test.ts`（118 个测试文件）。目标：Go `internal/*` 单测 + `web/tests/*.test.ts` + `internal/e2e`。
