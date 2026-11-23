@@ -14,7 +14,7 @@ test-race:
 	go test -race ./...
 
 web-build:
-	node scripts/build_web.cjs
+	NODE_PATH=$(shell npm root -g) node scripts/build_web.cjs
 
 web-test:
 	cd web && NODE_PATH=$(shell npm root -g) vitest run
