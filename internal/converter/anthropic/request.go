@@ -58,15 +58,23 @@ func AnthropicToChatRequest(req map[string]any) map[string]any {
 				messages = append(messages, map[string]any{"role": "user", "content": c})
 			case []any:
 				var results []any
+				// Group tool_result blocks by tool_use_id (preserves first-seen order).
+				groupOrder := make([]string, 0)
+				grouped := make(map[string][]string)
 				for _, b := range c {
 					bm := asMap(b)
 					if asString(bm["type"]) == "tool_result" {
+						id := asString(bm["tool_use_id"])
 						content := bm["content"]
 						s, ok := content.(string)
 						if !ok { raw, _ := json.Marshal(content); s = string(raw) }
 						if s == "" { s = "No output" }
-						results = append(results, map[string]any{"role": "tool", "content": s, "tool_call_id": asString(bm["tool_use_id"])})
+						if _, seen := grouped[id]; !seen { groupOrder = append(groupOrder, id) }
+						grouped[id] = append(grouped[id], s)
 					}
+				}
+				for _, id := range groupOrder {
+					results = append(results, map[string]any{"role": "tool", "content": strings.Join(grouped[id], "\n"), "tool_call_id": id})
 				}
 				if len(results) > 0 {
 					messages = append(messages, results...)
@@ -103,6 +111,7 @@ func AnthropicToChatRequest(req map[string]any) map[string]any {
 		}
 	}
 	out := map[string]any{"model": req["model"], "messages": messages}
+	if tools := ConvertAnthropicToolsToOpenAI(asSlice(req["tools"])); tools != nil { out["tools"] = tools }
 	for _, k := range []string{"max_tokens", "stream", "temperature", "top_p", "top_k"} {
 		if req[k] != nil { out[k] = req[k] }
 	}
@@ -122,7 +131,7 @@ func ConvertSystem(system any) string {
 			bm := asMap(b)
 			if asString(bm["type"]) == "text" { parts = append(parts, asString(bm["text"])) }
 		}
-		return strings.Join(parts, "\n")
+		return strings.Join(parts, " ")
 	}
 	return ""
 }
@@ -288,6 +297,20 @@ func ConvertOpenAIToolsToAnthropic(tools []any) []any {
 		out = append(out, map[string]any{
 			"name": fn["name"], "description": fn["description"], "input_schema": params,
 		})
+	}
+	return out
+}
+
+func ConvertAnthropicToolsToOpenAI(tools []any) []any {
+	if tools == nil { return nil }
+	out := make([]any, 0, len(tools))
+	for _, raw := range tools {
+		tool := asMap(raw)
+		params := tool["input_schema"]
+		if params == nil { params = defaultToolParameters }
+		out = append(out, map[string]any{"type": "function", "function": map[string]any{
+			"name": tool["name"], "description": tool["description"], "parameters": params,
+		}})
 	}
 	return out
 }
