@@ -37,6 +37,7 @@ func New(cfg *config.ProxyConfig, deps proxy.Dependencies, ctx config.ConfigCont
 	RegisterUserAPIs(mux, apiDeps)
 	RegisterLegacyFormAliases(mux)
 	RegisterFormLoginAliases(mux, apiDeps)
+	registerFormPasswordAlias(mux, apiDeps)
 	adminMux := http.NewServeMux()
 	RegisterAdminAPIs(adminMux, apiDeps)
 	mux.Handle("/api/admin/", AdminAuth(adminMux, apiDeps))
@@ -55,8 +56,14 @@ func New(cfg *config.ProxyConfig, deps proxy.Dependencies, ctx config.ConfigCont
 		if strings.HasPrefix(r.URL.Path, "/admin/") && r.URL.Path != "/admin/login" {
 			if pageCfg != nil && auth.IsPasswordConfigured(pageCfg) {
 				id := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-				if id == "" { id = r.URL.Query().Get("session") }
-				if id == "" { if c, err := r.Cookie("session"); err == nil { id = c.Value } }
+				if id == "" {
+					id = r.URL.Query().Get("session")
+				}
+				if id == "" {
+					if c, err := r.Cookie("session"); err == nil {
+						id = c.Value
+					}
+				}
 				if id == "" || !auth.HasSession(id) {
 					http.Redirect(w, r, "/admin/login", http.StatusFound)
 					return

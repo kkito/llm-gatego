@@ -383,28 +383,14 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 	})
 	mux.HandleFunc("GET /api/admin/auth-status", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
-		if err != nil { fail(w, 500, err.Error()); return }
-		okJSON(w, map[string]any{"passwordConfigured": auth.IsPasswordConfigured(cfg)})
-	})
-	mux.HandleFunc("POST /api/admin/password", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			Password string `json:"password"`
-		}
-		if !readJSON(w, r, &in) {
-			return
-		}
-		cfg, err := d.load()
 		if err != nil {
 			fail(w, 500, err.Error())
 			return
 		}
-		cfg.AdminPassword = in.Password
-		if err := d.save(cfg); err != nil {
-			fail(w, 500, err.Error())
-			return
-		}
-		okJSON(w, map[string]any{"updated": true})
+		okJSON(w, map[string]any{"passwordConfigured": auth.IsPasswordConfigured(cfg)})
 	})
+	mux.HandleFunc("POST /api/admin/password", func(w http.ResponseWriter, r *http.Request) { passwordHandler(w, r, d) })
+
 	mux.HandleFunc("POST /api/admin/login", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
 			Password string `json:"password"`
@@ -425,6 +411,70 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 		auth.SetSession(id)
 		okJSON(w, map[string]any{"session": id})
 	})
+}
+func passwordHandler(w http.ResponseWriter, r *http.Request, d APIDeps) {
+	var in struct {
+		Action          string `json:"action"`
+		Password        string `json:"password"`
+		NewPassword     string `json:"newPassword"`
+		ConfirmPassword string `json:"confirmPassword"`
+		CurrentPassword string `json:"currentPassword"`
+	}
+	if !readJSON(w, r, &in) {
+		return
+	}
+	cfg, err := d.load()
+	if err != nil {
+		fail(w, 500, err.Error())
+		return
+	}
+	hasPassword := auth.IsPasswordConfigured(cfg)
+	action := in.Action
+	if action == "" {
+		action = "change"
+	}
+	switch action {
+	case "delete":
+		if !hasPassword {
+			fail(w, 400, "当前未设置密码")
+			return
+		}
+		if in.CurrentPassword != cfg.AdminPassword {
+			fail(w, 400, "当前密码错误")
+			return
+		}
+		cfg.AdminPassword = ""
+		if err := d.save(cfg); err != nil {
+			fail(w, 500, err.Error())
+			return
+		}
+		okJSON(w, map[string]any{"updated": true, "message": "密码已删除"})
+	case "change":
+		newPassword := in.NewPassword
+		if newPassword == "" {
+			newPassword = in.Password
+		}
+		if newPassword == "" {
+			fail(w, 400, "新密码不能为空")
+			return
+		}
+		if newPassword != in.ConfirmPassword && in.ConfirmPassword != "" {
+			fail(w, 400, "两次输入的新密码不一致")
+			return
+		}
+		if hasPassword && in.CurrentPassword != cfg.AdminPassword {
+			fail(w, 400, "当前密码错误")
+			return
+		}
+		cfg.AdminPassword = newPassword
+		if err := d.save(cfg); err != nil {
+			fail(w, 500, err.Error())
+			return
+		}
+		okJSON(w, map[string]any{"updated": true, "message": "密码已更新"})
+	default:
+		fail(w, 400, "未知操作")
+	}
 }
 func RegisterUserAPIs(mux *http.ServeMux, d APIDeps) {
 	mux.HandleFunc("POST /api/user/login", func(w http.ResponseWriter, r *http.Request) {

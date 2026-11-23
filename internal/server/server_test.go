@@ -64,5 +64,7 @@ func TestLegacyFormAlias(t *testing.T) {
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("POST", "/admin/models/delete/nope", nil)
 	h.ServeHTTP(w, req)
-	if w.Code == 404 { t.Fatal("legacy alias unexpectedly 404") }
+	if w.Code == 404 {
+		t.Fatal("legacy alias unexpectedly 404")
+	}
 }

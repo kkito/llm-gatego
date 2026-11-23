@@ -15,19 +15,25 @@ func RegisterFormLoginAliases(mux *http.ServeMux, d APIDeps) {
 		_ = r.ParseForm()
 		pw := r.FormValue("password")
 		cfg, err := d.load()
-		if err != nil { http.Error(w, err.Error(), 500); return }
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
 		if cfg.AdminPassword == "" {
 			if pw == "" {
 				http.Redirect(w, r, "/admin/login?error=请输入密码", http.StatusFound)
 				return
 			}
 			cfg.AdminPassword = pw
-			if err := d.save(cfg); err != nil { http.Error(w, err.Error(), 500); return }
+			if err := d.save(cfg); err != nil {
+				http.Error(w, err.Error(), 500)
+				return
+			}
 		} else if pw != cfg.AdminPassword {
 			http.Redirect(w, r, "/admin/login?error=密码错误", http.StatusFound)
 			return
 		}
-		id := util.SHA256Password(pw+strconv.Itoa(os.Getpid()))[:32]
+		id := util.SHA256Password(pw + strconv.Itoa(os.Getpid()))[:32]
 		auth.SetSession(id)
 		http.SetCookie(w, &http.Cookie{Name: "session", Value: id, Path: "/", HttpOnly: true})
 		http.Redirect(w, r, "/admin/models", http.StatusFound)

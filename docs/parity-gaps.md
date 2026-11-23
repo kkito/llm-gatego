@@ -1,7 +1,20 @@
-# 1:1 对齐缺口清单（持续更新）
+# Parity gaps (functional 1:1; pixel-level explicitly out of scope)
 
-原版：`llm-gateway` v1.15.0（25,570 行 src，118 个测试文件）。
-目标：`llm-gatego` 完整 1:1。
+User decision (2026-11-23): functional parity only; do not chase pixel-perfect CSS.
+
+## Functional status
+
+- [x] Proxy routes, aliases, fallback, streaming, converter chains, 8 interceptors (269 cases), privacy (26 cases).
+- [x] Config load/save/refs/watch, SQLite 24-col schema, CLI start/stop/daemon/stats, port 4000.
+- [x] Admin/user JSON APIs: stats/usage/limits/announcement/model-test/password/privacy/groups/users/api-keys/user config+stats.
+- [x] Original form POST aliases, login/password form handlers with cookies + 302 redirects.
+- [x] Page-level admin/user auth redirects; setup/login text parity.
+- [x] defaultParams deep merge; model-delete cleanup; 182-day zero-filled heatmap series.
+- [x] Frontend TS renderers for all original admin/user pages and dynamic form routes; 51 vitest cases.
+- [x] Page functionality: forms submit to APIs, model-test performs real upstream request, JSON editor, stats detail/pagination, user stats filters.
+- [ ] Remaining functional gaps: exhaustive migration of original 118 test files / 1382 cases (especially e2e), exact error-message parity for some form validations, full user stats/home data fields if live comparison reveals differences.
+
+## Historical (superseded) gap list
 
 ## A. 后端缺失/简化
 

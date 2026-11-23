@@ -99,10 +99,18 @@ func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
 		type agg struct{ requests, successful, failed, in, out, total, cached int64 }
 		ma := map[string]*agg{}
 		ua := map[string]*agg{}
-		type detailRow struct { Timestamp, UserName, CustomModel, ModelGroup string; StatusCode, DurationMs int; TTFTMs any; TPS any; CompletionTokens, PromptTokens, CachedTokens int }
+		type detailRow struct {
+			Timestamp, UserName, CustomModel, ModelGroup string
+			StatusCode, DurationMs                       int
+			TTFTMs                                       any
+			TPS                                          any
+			CompletionTokens, PromptTokens, CachedTokens int
+		}
 		details := []detailRow{}
 		page, _ := strconv.Atoi(q.Get("page"))
-		if page < 1 { page = 1 }
+		if page < 1 {
+			page = 1
+		}
 		const pageSize = 20
 		for _, row := range rows {
 			if userFilter != "" && row.UserName != userFilter {
@@ -166,14 +174,32 @@ func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
 		for k, a := range ua {
 			users[k] = map[string]any{"requests": a.requests}
 		}
+		// Original heatmap always returns a 182-day zero-filled series.
+		heatLoc, _ := time.LoadLocation(tz)
+		if heatLoc == nil { heatLoc = time.UTC }
+		today := time.Now().In(heatLoc)
+		for i := 181; i >= 0; i-- {
+			d := today.AddDate(0, 0, -i).Format("2006-01-02")
+			if _, exists := byDate[d]; !exists { byDate[d] = 0 }
+		}
 		payload := map[string]any{
 			"ok": true, "success": true,
 			"data": map[string]any{"dateRange": startDate + " ~ " + endDate, "overview": ov, "byModel": byModel, "byProvider": byProvider, "byHour": byHour, "byDate": byDate, "byUser": users,
 				"totalRequests": ov.TotalRequests, "successfulRequests": ov.SuccessfulRequests, "failedRequests": ov.FailedRequests,
 				"totalInputTokens": ov.TotalInputTokens, "totalOutputTokens": ov.TotalOutputTokens, "totalTokens": ov.TotalTokens, "totalCachedTokens": ov.TotalCachedTokens},
 			"dateRange": startDate + " ~ " + endDate,
-			"page": page, "totalPages": (len(details) + pageSize - 1) / pageSize,
-			"details": func() []detailRow { start := (page-1)*pageSize; if start > len(details) { return []detailRow{} }; end := start+pageSize; if end > len(details) { end = len(details) }; return details[start:end] }(),
+			"page":      page, "totalPages": (len(details) + pageSize - 1) / pageSize,
+			"details": func() []detailRow {
+				start := (page - 1) * pageSize
+				if start > len(details) {
+					return []detailRow{}
+				}
+				end := start + pageSize
+				if end > len(details) {
+					end = len(details)
+				}
+				return details[start:end]
+			}(),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(payload)
@@ -310,22 +336,7 @@ func registerMiscAdminAPI(mux *http.ServeMux, d APIDeps) {
 		}
 		okJSON(w, map[string]any{"content": cfg.UiSettings.AnnouncementMarkdown})
 	})
-	mux.HandleFunc("POST /api/admin/models/test", func(w http.ResponseWriter, r *http.Request) {
-		var in config.ProviderConfig
-		if !readJSON(w, r, &in) {
-			return
-		}
-		if in.Provider == "" || in.BaseURL == "" || in.RealModel == "" {
-			fail(w, 400, "missing required fields")
-			return
-		}
-		key, err := config.ResolveAPIKey(in.APIKey, nil)
-		if err != nil {
-			fail(w, 400, err.Error())
-			return
-		}
-		okJSON(w, map[string]any{"success": true, "message": "configuration valid", "provider": in.Provider, "apiKey": config.MaskAPIKey(key)})
-	})
+	mux.HandleFunc("POST /api/admin/models/test", func(w http.ResponseWriter, r *http.Request) { handleModelTest(w, r, d) })
 }
 
 func registerUsersExtraAPI(mux *http.ServeMux, d APIDeps) {
@@ -529,7 +540,11 @@ func registerUserPagesAPI(mux *http.ServeMux, d APIDeps) {
 		end := r.URL.Query().Get("endDate")
 		modelFilter := r.URL.Query().Get("model")
 		userName := r.URL.Query().Get("userName")
-		type modelAgg struct { Requests, Successful, Failed int; TotalTokens, InputTokens, OutputTokens, CachedTokens int64; AvgDuration float64 }
+		type modelAgg struct {
+			Requests, Successful, Failed                         int
+			TotalTokens, InputTokens, OutputTokens, CachedTokens int64
+			AvgDuration                                          float64
+		}
 		byModel := map[string]*modelAgg{}
 		byDate := map[string]int{}
 		byHour := map[string]int{}
@@ -538,32 +553,61 @@ func registerUserPagesAPI(mux *http.ServeMux, d APIDeps) {
 		var durationSum float64
 		for _, row := range rows {
 			ts := row.Timestamp
-			if start != "" && ts < start { continue }
-			if end != "" && ts > end+"T23:59:59.999Z" { continue }
-			if modelFilter != "" && row.CustomModel != modelFilter { continue }
-			if userName != "" && row.UserName != userName { continue }
+			if start != "" && ts < start {
+				continue
+			}
+			if end != "" && ts > end+"T23:59:59.999Z" {
+				continue
+			}
+			if modelFilter != "" && row.CustomModel != modelFilter {
+				continue
+			}
+			if userName != "" && row.UserName != userName {
+				continue
+			}
 			total++
-			if row.StatusCode >= 200 && row.StatusCode < 300 { successful++ } else if row.StatusCode >= 400 { failed++ }
+			if row.StatusCode >= 200 && row.StatusCode < 300 {
+				successful++
+			} else if row.StatusCode >= 400 {
+				failed++
+			}
 			totalTokens += int64(ptrInt(row.TotalTokens))
 			inputTokens += int64(ptrInt(row.PromptTokens))
 			outputTokens += int64(ptrInt(row.CompletionTokens))
 			cachedTokens += int64(ptrInt(row.CachedTokens))
 			durationSum += float64(row.DurationMs)
-			if len(ts) >= 10 { byDate[ts[:10]]++ }
-			if len(ts) >= 13 { byHour[ts[11:13]]++ }
+			if len(ts) >= 10 {
+				byDate[ts[:10]]++
+			}
+			if len(ts) >= 13 {
+				byHour[ts[11:13]]++
+			}
 			a := byModel[row.CustomModel]
-			if a == nil { a = &modelAgg{}; byModel[row.CustomModel] = a }
+			if a == nil {
+				a = &modelAgg{}
+				byModel[row.CustomModel] = a
+			}
 			a.Requests++
-			if row.StatusCode >= 200 && row.StatusCode < 300 { a.Successful++ } else if row.StatusCode >= 400 { a.Failed++ }
+			if row.StatusCode >= 200 && row.StatusCode < 300 {
+				a.Successful++
+			} else if row.StatusCode >= 400 {
+				a.Failed++
+			}
 			a.TotalTokens += int64(ptrInt(row.TotalTokens))
 			a.InputTokens += int64(ptrInt(row.PromptTokens))
 			a.OutputTokens += int64(ptrInt(row.CompletionTokens))
 			a.CachedTokens += int64(ptrInt(row.CachedTokens))
 			a.AvgDuration += float64(row.DurationMs)
 		}
-		for _, a := range byModel { if a.Requests > 0 { a.AvgDuration /= float64(a.Requests) } }
+		for _, a := range byModel {
+			if a.Requests > 0 {
+				a.AvgDuration /= float64(a.Requests)
+			}
+		}
 		var avgDuration float64
-		if total > 0 { avgDuration = durationSum / float64(total) }
+		if total > 0 {
+			avgDuration = durationSum / float64(total)
+		}
 		okJSON(w, map[string]any{
 			"total": total, "successful": successful, "failed": failed,
 			"totalTokens": totalTokens, "inputTokens": inputTokens, "outputTokens": outputTokens, "cachedTokens": cachedTokens,

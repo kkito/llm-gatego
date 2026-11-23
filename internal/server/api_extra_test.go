@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -62,4 +63,29 @@ func TestExtraAdminAPIs(t *testing.T) {
 			t.Errorf("%s %s => %d %s", tc.method, tc.path, w.Code, w.Body.String())
 		}
 	}
+}
+
+func TestPasswordValidationAndDelete(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"models":[],"adminPassword":"old"}`), 0644)
+	cfg := &config.ProxyConfig{AdminPassword: "old"}
+	d := APIDeps{ConfigDir: dir, Get: func() *config.ProxyConfig { return cfg }}
+	mux := http.NewServeMux(); mux.HandleFunc("POST /api/admin/password", func(w http.ResponseWriter, r *http.Request) { passwordHandler(w, r, d) })
+	post := func(body string) map[string]any {
+		w := httptest.NewRecorder(); mux.ServeHTTP(w, httptest.NewRequest("POST", "/api/admin/password", strings.NewReader(body)))
+		var out map[string]any; json.Unmarshal(w.Body.Bytes(), &out); return out
+	}
+	if out := post(`{"action":"change","currentPassword":"bad","newPassword":"n","confirmPassword":"n"}`); out["ok"] != false || !strings.Contains(fmt.Sprint(out["error"]), "当前密码错误") { t.Fatal(out) }
+	if out := post(`{"action":"change","newPassword":"a","confirmPassword":"b"}`); out["ok"] != false { t.Fatal(out) }
+	if out := post(`{"action":"delete","currentPassword":"old"}`); out["ok"] != true || func() bool { c, _ := config.LoadFullConfig(filepath.Join(dir, "config.json")); return c.AdminPassword != "" }() { c, _ := config.LoadFullConfig(filepath.Join(dir, "config.json")); t.Fatal(out, c.AdminPassword) }
+}
+
+func TestStatsAPIHeatmap182Days(t *testing.T) {
+	d := extraDeps(t)
+	mux := http.NewServeMux(); RegisterExtraAdminAPIs(mux, d)
+	w := httptest.NewRecorder(); mux.ServeHTTP(w, httptest.NewRequest("GET", "/api/admin/stats", nil))
+	if w.Code != 200 { t.Fatal(w.Code, w.Body.String()) }
+	var env struct { Data struct { ByDate map[string]int `json:"byDate"` } `json:"data"` }
+	json.Unmarshal(w.Body.Bytes(), &env)
+	if len(env.Data.ByDate) != 182 { t.Fatal(len(env.Data.ByDate)) }
 }
