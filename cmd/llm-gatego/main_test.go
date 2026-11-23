@@ -77,3 +77,23 @@ func TestParseStartFlags(t *testing.T) {
 		t.Fatal(o)
 	}
 }
+
+func TestDefaultConfigDirIsLlmGatego(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	start, err := parseStart(nil, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(home, ".llm-gatego")
+	if start.configDir != want {
+		t.Fatalf("start=%q want=%q", start.configDir, want)
+	}
+	stats, err := parseStats(nil, io.Discard)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.configDir != want {
+		t.Fatalf("stats=%q want=%q", stats.configDir, want)
+	}
+}

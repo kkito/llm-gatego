@@ -54,6 +54,14 @@ func runE(args []string, out io.Writer) error {
 	printUsage(out)
 	return nil
 }
+func defaultConfigDir() string {
+	home, _ := os.UserHomeDir()
+	if home == "" {
+		return ".llm-gatego"
+	}
+	return filepath.Join(home, ".llm-gatego")
+}
+
 func printUsage(out io.Writer) {
 	fmt.Fprintln(out, "llm-gatego - Go rewrite of llm-gateway")
 	fmt.Fprintln(out, "usage: llm-gatego <start|daemon|stop|stats> [options]")
@@ -69,8 +77,7 @@ type startOpts struct {
 }
 
 func parseStart(args []string, out io.Writer) (startOpts, error) {
-	home, _ := os.UserHomeDir()
-	o := startOpts{configDir: filepath.Join(home, ".llm-gateway"), port: 4000, timeout: 300000}
+	o := startOpts{configDir: defaultConfigDir(), port: 4000, timeout: 300000}
 	fs := flag.NewFlagSet("start", flag.ContinueOnError)
 	fs.SetOutput(out)
 	fs.StringVar(&o.configDir, "C", o.configDir, "config directory")
@@ -165,11 +172,7 @@ func startCommand(args []string, out io.Writer, daemon bool) error {
 	return http.ListenAndServe(fmt.Sprintf(":%d", o.port), h)
 }
 func stopCommand(args []string, out io.Writer) error {
-	dir := "."
-	home, _ := os.UserHomeDir()
-	if home != "" {
-		dir = filepath.Join(home, ".llm-gateway")
-	}
+	dir := defaultConfigDir()
 	fs := flag.NewFlagSet("stop", flag.ContinueOnError)
 	fs.SetOutput(out)
 	fs.StringVar(&dir, "C", dir, "config directory")
@@ -197,8 +200,7 @@ type statsOpts struct {
 }
 
 func parseStats(args []string, out io.Writer) (statsOpts, error) {
-	home, _ := os.UserHomeDir()
-	o := statsOpts{configDir: filepath.Join(home, ".llm-gateway")}
+	o := statsOpts{configDir: defaultConfigDir()}
 	fs := flag.NewFlagSet("stats", flag.ContinueOnError)
 	fs.SetOutput(out)
 	fs.StringVar(&o.configDir, "C", o.configDir, "config directory")
