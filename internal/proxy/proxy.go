@@ -67,7 +67,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "model is required")
 		return
 	}
-	cfgs := findCandidates(cfg, model)
+	cfgs, findErr := findCandidates(cfg, model)
+	if findErr != nil {
+		writeError(w, 400, findErr.Error())
+		return
+	}
 	if len(cfgs) == 0 {
 		writeError(w, 400, fmt.Sprintf("Model '%s' not found", model))
 		return
@@ -111,13 +115,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_ = start
 }
 func mergeDefaultParams(body map[string]any, defaults map[string]any) map[string]any {
-	if len(defaults) == 0 { return body }
+	if len(defaults) == 0 {
+		return body
+	}
 	out := map[string]any{}
-	for k, v := range defaults { out[k] = deepCopyValue(v) }
+	for k, v := range defaults {
+		out[k] = deepCopyValue(v)
+	}
 	for k, v := range body {
 		if k == "extra_body" {
 			if dm, ok := defaults["extra_body"].(map[string]any); ok {
-				if bm, ok := v.(map[string]any); ok { out[k] = deepMergeMaps(dm, bm); continue }
+				if bm, ok := v.(map[string]any); ok {
+					out[k] = deepMergeMaps(dm, bm)
+					continue
+				}
 			}
 		}
 		out[k] = v
@@ -128,21 +139,31 @@ func deepCopyValue(v any) any {
 	switch x := v.(type) {
 	case map[string]any:
 		m := map[string]any{}
-		for k, val := range x { m[k] = deepCopyValue(val) }
+		for k, val := range x {
+			m[k] = deepCopyValue(val)
+		}
 		return m
 	case []any:
 		a := make([]any, len(x))
-		for i, val := range x { a[i] = deepCopyValue(val) }
+		for i, val := range x {
+			a[i] = deepCopyValue(val)
+		}
 		return a
-	default: return v
+	default:
+		return v
 	}
 }
 func deepMergeMaps(base, override map[string]any) map[string]any {
 	out := map[string]any{}
-	for k, v := range base { out[k] = deepCopyValue(v) }
+	for k, v := range base {
+		out[k] = deepCopyValue(v)
+	}
 	for k, v := range override {
 		if bm, ok := out[k].(map[string]any); ok {
-			if om, ok := v.(map[string]any); ok { out[k] = deepMergeMaps(bm, om); continue }
+			if om, ok := v.(map[string]any); ok {
+				out[k] = deepMergeMaps(bm, om)
+				continue
+			}
 		}
 		out[k] = v
 	}
@@ -160,23 +181,37 @@ func endpointFor(path string) (string, converter.FormatName) {
 	}
 	return "", ""
 }
-func findCandidates(cfg *config.ProxyConfig, model string) []config.ProviderConfig {
+func findCandidates(cfg *config.ProxyConfig, model string) ([]config.ProviderConfig, error) {
 	out := []config.ProviderConfig{}
 	for _, pc := range cfg.Models {
 		if pc.CustomModel == model {
 			out = append(out, pc)
 		}
 	}
-	if len(out) == 0 {
-		for _, g := range cfg.ModelGroups {
-			if g.Name == model {
-				for _, name := range g.Models {
-					out = append(out, findCandidates(cfg, name)...)
-				}
-			}
-		}
+	if len(out) > 0 {
+		return out, nil
 	}
-	return out
+	for _, g := range cfg.ModelGroups {
+		if g.Name != model {
+			continue
+		}
+		for _, name := range g.Models {
+			models, err := findCandidates(cfg, name)
+			if err != nil {
+				return nil, err
+			}
+			if len(models) == 0 {
+				available := []string{}
+				for _, pc := range cfg.Models {
+					available = append(available, pc.CustomModel)
+				}
+				return nil, fmt.Errorf("Model %q in group %q not found in provider configs. Available models: [%s]", name, model, strings.Join(available, ", "))
+			}
+			out = append(out, models...)
+		}
+		return out, nil
+	}
+	return out, nil
 }
 func providerFormat(p config.ProviderType) converter.FormatName {
 	switch p {

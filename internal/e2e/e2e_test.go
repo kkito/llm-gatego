@@ -154,10 +154,14 @@ func TestE2ELegacyFormAliasAndStatsAPI(t *testing.T) {
 	mux := server.New(cfg, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir, ConfigPath: filepath.Join(dir, "config.json")}, server.Options{})
 	// Original form POST route must not 404.
 	w := call(t, mux, "POST", "/admin/models/toggle-hidden/m1", "", nil)
-	if w.Code == http.StatusNotFound { t.Fatal(w.Code, w.Body.String()) }
+	if w.Code == http.StatusNotFound {
+		t.Fatal(w.Code, w.Body.String())
+	}
 	// Stats API envelope.
 	w = call(t, mux, "GET", "/api/admin/stats", "", nil)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"ok":true`) { t.Fatal(w.Code, w.Body.String()) }
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"ok":true`) {
+		t.Fatal(w.Code, w.Body.String())
+	}
 }
 
 func TestE2EDefaultParamsMerged(t *testing.T) {
@@ -175,10 +179,16 @@ func TestE2EDefaultParamsMerged(t *testing.T) {
 	}}}
 	mux := newServer(t, cfg)
 	w := call(t, mux, "POST", "/v1/chat/completions", `{"model":"m","temperature":0.8,"messages":[]}`, nil)
-	if w.Code != 200 { t.Fatal(w.Code, w.Body.String()) }
-	if fmt.Sprint(captured["temperature"]) != "0.8" || fmt.Sprint(captured["max_tokens"]) != "2048" { t.Fatal(captured) }
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if fmt.Sprint(captured["temperature"]) != "0.8" || fmt.Sprint(captured["max_tokens"]) != "2048" {
+		t.Fatal(captured)
+	}
 	eb, _ := captured["extra_body"].(map[string]any)
-	if fmt.Sprint(eb["top_k"]) != "50" { t.Fatal(captured) }
+	if fmt.Sprint(eb["top_k"]) != "50" {
+		t.Fatal(captured)
+	}
 }
 
 func TestE2EModelDeleteCleanup(t *testing.T) {
@@ -196,12 +206,22 @@ func TestE2EModelDeleteCleanup(t *testing.T) {
 	os.WriteFile(path, b, 0644)
 	mux := server.New(cfg, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir, ConfigPath: path}, server.Options{})
 	w := call(t, mux, "POST", "/admin/models/delete/gpt-4", "", nil)
-	if w.Code != 200 { t.Fatal(w.Code, w.Body.String()) }
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
 	out, err := config.LoadFullConfig(path)
-	if err != nil { t.Fatal(err) }
-	if len(out.Models) != 1 || out.Models[0].CustomModel != "gpt-3.5" { t.Fatal(out.Models) }
-	if len(out.ModelGroups) != 1 || out.ModelGroups[0].Name != "gpt-pool" { t.Fatal(out.ModelGroups) }
-	if len(out.UserApiKeys[0].AllowedModels) != 0 { t.Fatal(out.UserApiKeys) }
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Models) != 1 || out.Models[0].CustomModel != "gpt-3.5" {
+		t.Fatal(out.Models)
+	}
+	if len(out.ModelGroups) != 1 || out.ModelGroups[0].Name != "gpt-pool" {
+		t.Fatal(out.ModelGroups)
+	}
+	if len(out.UserApiKeys[0].AllowedModels) != 0 {
+		t.Fatal(out.UserApiKeys)
+	}
 }
 
 func TestE2EPageAuthRedirects(t *testing.T) {
@@ -212,11 +232,17 @@ func TestE2EPageAuthRedirects(t *testing.T) {
 	os.WriteFile(path, b, 0644)
 	mux := server.New(cfg, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir, ConfigPath: path}, server.Options{})
 	w := call(t, mux, "GET", "/admin/models", "", nil)
-	if w.Code != 302 || w.Header().Get("Location") != "/admin/login" { t.Fatal(w.Code, w.Header().Get("Location")) }
+	if w.Code != 302 || w.Header().Get("Location") != "/admin/login" {
+		t.Fatal(w.Code, w.Header().Get("Location"))
+	}
 	w = call(t, mux, "GET", "/user/main", "", nil)
-	if w.Code != 302 || w.Header().Get("Location") != "/user/login" { t.Fatal(w.Code, w.Header().Get("Location")) }
+	if w.Code != 302 || w.Header().Get("Location") != "/user/login" {
+		t.Fatal(w.Code, w.Header().Get("Location"))
+	}
 	w = call(t, mux, "GET", "/admin/login", "", nil)
-	if w.Code != 200 { t.Fatal(w.Code) }
+	if w.Code != 200 {
+		t.Fatal(w.Code)
+	}
 }
 
 func TestE2EFormLoginRedirect(t *testing.T) {
@@ -226,8 +252,37 @@ func TestE2EFormLoginRedirect(t *testing.T) {
 	cfg, _ := config.LoadFullConfig(path)
 	mux := server.New(cfg, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir, ConfigPath: path}, server.Options{})
 	w := call(t, mux, "POST", "/admin/login", "password=secret", map[string]string{"Content-Type": "application/x-www-form-urlencoded"})
-	if w.Code != 302 || w.Header().Get("Location") != "/admin/models" { t.Fatal(w.Code, w.Header().Get("Location"), w.Body.String()) }
-	if w.Header().Get("Set-Cookie") == "" { t.Fatal("missing session cookie") }
+	if w.Code != 302 || w.Header().Get("Location") != "/admin/models" {
+		t.Fatal(w.Code, w.Header().Get("Location"), w.Body.String())
+	}
+	if w.Header().Get("Set-Cookie") == "" {
+		t.Fatal("missing session cookie")
+	}
 	w = call(t, mux, "POST", "/admin/login", "password=wrong", map[string]string{"Content-Type": "application/x-www-form-urlencoded"})
-	if w.Code != 302 || w.Header().Get("Location") == "/admin/models" { t.Fatal(w.Code, w.Header().Get("Location")) }
+	if w.Code != 302 || w.Header().Get("Location") == "/admin/models" {
+		t.Fatal(w.Code, w.Header().Get("Location"))
+	}
+}
+
+func TestE2EGroupWithMissingMemberReportsOriginalError(t *testing.T) {
+	cfg := &config.ProxyConfig{
+		Models:      []config.ProviderConfig{{CustomModel: "m1", RealModel: "r1", BaseURL: "http://x", Provider: config.ProviderOpenAI, APIKey: "k"}},
+		ModelGroups: []config.ModelGroup{{Name: "g", Models: []string{"missing"}}},
+	}
+	mux := newServer(t, cfg)
+	w := call(t, mux, "POST", "/v1/chat/completions", `{"model":"g"}`, nil)
+	if w.Code != 400 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	var env struct {
+		Error struct {
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &env); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(env.Error.Message, `Model "missing" in group "g" not found in provider configs`) {
+		t.Fatal(w.Body.String())
+	}
 }
