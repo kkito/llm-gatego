@@ -93,12 +93,18 @@ sequenceDiagram
             S->>S: 记录 TTFT
         end
     end
-    U->>S: [DONE]
-    S->>C: Flush()
-    C-->>S: 剩余事件
-    S->>Client: 最终 SSE 事件
-    S->>S: 计算 TPS
-    S->>DB: sync.Once → Log(entry with ttft/tps)
+    alt 正常结束
+        U->>S: [DONE]
+        S->>C: Flush()
+        C-->>S: 剩余事件
+        S->>Client: 最终 SSE 事件
+        S->>S: 计算 TPS
+        S->>DB: sync.Once → Log(entry with ttft/tps)
+    else 上游超时 / 连接中断
+        S->>S: 记录错误日志
+        S->>Client: SSE error 事件
+        S->>DB: sync.Once → Log(entry with error)
+    end
 ```
 
 ## 4. Admin 配置变更

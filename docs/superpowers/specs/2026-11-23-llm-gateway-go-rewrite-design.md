@@ -7,7 +7,7 @@
 
 把 `/Users/kkito/proj/own/llm-gateway`（TypeScript / Hono / Node，v1.15.0，约 22k 行 src，133 个测试文件、约 1382 个 test case）在空目录 `/Users/kkito/proj/own/llm-gatego` 中用 Go 完整重写，包含：
 
-1. CLI（start/stop/daemon/pidfile/version）+ HTTP 服务（三条代理路由、models、health）
+1. CLI（start/stop/daemon/pidfile/version/stats 子命令）+ HTTP 服务（三条代理路由、models、health、完整 admin/user 路由）
 2. 配置加载/校验/热重载、API Key 引用、级联清理纯函数
 3. OpenAI ↔ Anthropic ↔ Responses 三种格式互转（含流式 SSE 有状态转换器）
 4. Provider 工厂、限流/用量/计费、模型组 fallback、8 个拦截器、隐私保护
@@ -49,7 +49,7 @@ llm-gatego/
 ├── web/                       # TS WebComponents + 纯函数渲染 + api.ts + vitest 测试
 ├── scripts/                   # build_web.cjs (esbuild)、gen go embed 辅助
 ├── migrations/                # SQL 迁移文件
-├── docs/                      # UML HTML 图组 + specs/plans
+├── docs/                      # Mermaid 图组 (architecture/uml-*/data-model) + specs/plans
 ├── Makefile                   # build / test / test-race / web-test / web-build
 └── go.mod                     # 仅 modernc.org/sqlite 等极少数依赖
 ```
@@ -74,6 +74,7 @@ Go struct 与 TS interface 1:1 对应（JSON tags 同名）：
 - `config-operations.ts` 的 4 个纯函数：`RemoveModelFromConfig`（级联清理 modelGroups/userApiKeys）、`RenameModelInConfig`、`RemoveModelGroupFromConfig`、`RenameApiKeyRefInConfig`，均返回新值不改入参
 - `createConfigContext`（从单一 configDir 派生 configPath/logDir/detailLogDir/pidFile）
 - `watchConfigFile`（fsnotify 或轮询，markSelfWrite 避免自写触发；测试可禁用）
+- 校验补完：`defaultParams` 必须是对象、`proxy` 必须是字符串、`apiKey` 引用格式校验
 
 ### 4.2 代理路由 (`internal/proxy`)
 
@@ -133,9 +134,9 @@ Go struct 与 TS interface 1:1 对应（JSON tags 同名）：
 ### 4.6 持久化 (`internal/store`)
 
 - 驱动：`modernc.org/sqlite`（纯 Go，无 cgo），`database/sql`
-- 迁移：`migrations/0000_create_requests.sql`（24 列 + 5 索引）、`0001_add_ttft_tps.sql`、`0002_add_client_ip.sql`；最小顺序 migrator 记录已执行版本；老库 "already exists" fallback
+- 迁移：单文件 `migrations/0001_create_requests.sql`，与原项目 `src/lib/schema.ts` 对齐 —— **24 列全部建表时创建**（含 `client_ip`、`ttft_ms`、`tps`），**5 个索引同名**（`idx_timestamp/user_name/client_ip/custom_model/created_at`）；最小顺序 migrator 记录已执行版本
 - `DatabaseManager`：单例、`Initialize`、`GetDB`、`Close`、`ResetForTest`、`CleanupOldRequests(90)`
-- `RequestLogger`：100ms flush tick、500 队列上限（满则丢最旧并告警）、按 requestId 去重（map，最后一次写入生效）、`INSERT OR IGNORE`、批量事务、`Stop` 时 flush
+- `RequestLogger`：100ms flush tick、500 队列上限（满则丢最旧并告警）、按 requestId 去重（最后一次写入生效，`ON CONFLICT(request_id) DO UPDATE`）、批量事务、`Stop` 时 flush
 - WAL + synchronous=NORMAL
 
 ### 4.7 认证与统计
@@ -143,10 +144,14 @@ Go struct 与 TS interface 1:1 对应（JSON tags 同名）：
 - `admin/session`：内存 `map[string]struct{}`，Session 从 Cookie/Bearer/query 三种方式提取；`isPasswordConfigured`；login/password 路由豁免
 - `user/auth`：userApiKey 认证，Bearer / x-api-key / `user_session` Cookie / query；`allowedModels` 由 interceptor 兜底；未配置 userApiKeys 时放行
 - 统计 API：`/admin/api/stats`、`/admin/api/usage`、`/admin/users/api`、`/user/stats` 的 JSON 等价物；按日/周/月/模型/用户/客户端 IP 聚合，TTFT/TPS、token、缓存 token、费用
+- 前端配套 JSON API 统一前缀 `/api/admin/*` 和 `/api/user/*`，返回 `{ok,data,error}` envelope；涵盖：models（CRUD/copy/move/toggle-hidden/test）、model-groups（CRUD/add/remove/move-model）、limits（add/delete）、users（CRUD/toggle）、api-keys（CRUD）、privacy、announcement、password、stats、usage
+- 工具函数移植：`lib/format.ts`（formatNumber/formatDuration/formatPct）、`stream-metrics.ts`、`stream-usage.ts`、`time-utils.ts`（localDateToUtcRange）、`client-ip.ts`、`proxy.ts`、`openai-chat-fields.ts`、`password.ts`（SHA256）、`paths.ts`、`version.ts`
 
 ### 4.8 CLI (`cmd/llm-gatego`)
 
-子命令/flag（对齐原 `cli/start.ts`）：`-config-dir/-C`、`-port`、`-timeout`、`-daemon`、`-stop`、`-debug`、`-version`。
+子命令/flag（对齐原 `cli/start.ts`）：`-config-dir/-C`（默认 `~/.llm-gateway/`）、`-port`（默认 **4000**）、`-timeout`（默认 300000ms）、`-daemon/-D`、`-stop`、`-debug`、`-version`。
+
+另有 **`stats` 子命令**（对齐原 `cli/stats.ts`）：`-C/--config-dir`、`--date YYYY-MM-DD`、`--week YYYY-Www`、`--month YYYY-MM`、`--by-hour`、`--json`；输出模型/供应商维度请求数、成功/失败、token 统计、按时/按日分布。
 daemon：fork 自身（或 `os.StartProcess`）、pidfile 检查（陈旧 pidfile 清理）、父进程等待就绪再返回、stdout/stderr 重定向日志文件；stop：SIGTERM → 等 3s → SIGKILL → 删 pidfile。
 优雅退出：清理 flush ticker、关闭 DB、停止 watcher。
 
@@ -227,7 +232,7 @@ daemon：fork 自身（或 `os.StartProcess`）、pidfile 检查（陈旧 pidfil
 6. auth/stats/admin API + e2e 测试
 7. web TS 组件 + vitest + esbuild 内嵌
 8. CLI daemon/patch 收尾 + e2e 全量
-9. UML 图组 + 测试映射表终检
+9. Mermaid 图组 + 测试映射表终检
 
 ## 9. 明确不在范围内 / 已知差异
 

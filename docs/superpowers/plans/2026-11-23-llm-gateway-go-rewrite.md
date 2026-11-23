@@ -17,6 +17,7 @@
 - 测试迁移必须有对照表 `docs/test-migration-map.md`：源测试路径 → 目标测试路径 → 覆盖说明。
 - Web 工具链全局安装，项目内不写 `web/package.json`、不提交 `web/node_modules`；测试命令用 `NODE_PATH=$(npm root -g) vitest run`。
 - 完成标准：`make test`（`go test ./... -race`）+ `make web-test` 全绿；`docs/` 下所有 Mermaid 图齐全。
+- 对齐原项目 v1.15.0 细节：默认端口 **4000**；CLI 含 `stats` 子命令；路由别名含 `/v1/v1/*`；DB schema 为单文件建表 24 列 5 索引（无增量 ALTER）；前端 JSON API 前缀 `/api/admin/*` + `/api/user/*`。
 - 禁止使用 cgo 依赖（SQLite 用纯 Go 驱动）。
 
 ---
@@ -24,8 +25,9 @@
 ## 文件结构总览
 
 ```
-cmd/llm-gatego/main.go                  # CLI 入口
+cmd/llm-gatego/{main,daemon,stats}.go     # CLI 入口 + daemon + stats 子命令
 internal/config/{types,load,save,operations,apikey,context,watcher}.go + _test.go
+internal/util/{format,time,clientip,password,paths,streammetrics,openaifields}.go + _test.go
 internal/logger/{logger,detail,system}.go + _test.go
 internal/store/{manager,migrations,schema,request_logger}.go + _test.go
 internal/provider/{provider,base,openai,anthropic,response_api,factory}.go + _test.go
@@ -37,7 +39,7 @@ internal/privacy/{types,apply,strip_user,sanitizer,whitelist}.go + _test.go
 internal/auth/{admin,user}.go + _test.go
 internal/stats/{aggregate,api}.go + _test.go
 internal/proxy/{chat,messages,responses,models,upstream,fallback,stream,response}.go + _test.go
-internal/server/{server,middleware,assets}.go + _test.go
+internal/server/{server,middleware,assets,admin_api,user_api}.go + _test.go
 internal/e2e/{proxy,admin,user,config,logging}_test.go
 web/{src,tests}/ …
 scripts/build_web.cjs
@@ -703,6 +705,32 @@ git add internal/config go.mod go.sum && git commit -m "feat(config): save, apik
 
 ---
 
+## Task 3.5: 基础工具函数移植（`internal/util`）
+
+**Files:**
+- Create: `internal/util/{format,time,clientip,password,paths,streammetrics,openaifields}.go` + `_test.go`
+
+**Interfaces:** 对齐原 `src/lib/` 中的纯函数工具：
+- `util.FormatNumber(n *int64) string`, `FormatDuration(ms *int) string`, `FormatPct(value, total int) string`（原 `lib/format.ts`）
+- `util.LocalDateToUTCRange(date, week, month string) (start, end int64, err error)`, `GetTodayDate/GetWeekStart/GetMonthStart`（原 `lib/time-utils.ts` + `period-utils.ts`）
+- `util.ExtractClientIP(r *http.Request) string`（X-Forwarded-For → X-Real-IP → RemoteAddr，原 `lib/client-ip.ts`）
+- `util.SHA256Password(password string) string`（原 `lib/password.ts`）
+- `util.ResolvePaths(configDir string) (configPath, logDir, detailLogDir, pidFile string)`（原 `lib/paths.ts`，与 `config.CreateConfigContext` 合并或保留 shim）
+- `util.CalculateStreamMetrics(firstTokenTime, lastTokenTime time.Time, completionTokens int) (ttftMs *int, tps *float64)`（原 `lib/stream-metrics.ts` + `stream-usage.ts`）
+- `util.RepairToolParameters(body map[string]any)`（原 `lib/openai-chat-fields.ts` 中的 tool parameters 修复）
+- `util.Version = "1.15.0"`（原 `lib/version.ts`）
+
+每个函数有对应 `_test.go`，从源 `tests/lib/format.test.ts`、`time-utils.test.ts`、`client-ip.test.ts`、`stream-metrics.test.ts` 等迁移语义。
+
+- [ ] **Step 1: 写失败测试 → 实现 → 验证 → 提交**
+
+```bash
+go test ./internal/util/... -race -v
+git add internal/util && git commit -m "feat(util): format, time, clientip, password, stream metrics helpers"
+```
+
+---
+
 ## Task 4: 日志系统（`internal/logger`）
 
 **Files:**
@@ -768,7 +796,7 @@ git add internal/logger && git commit -m "feat(logger): structured, detail, syst
 ## Task 5: SQLite 存储、迁移与 RequestLogger
 
 **Files:**
-- Create: `internal/store/{manager,migrations,request_logger}.go`, `migrations/0001_create_requests.sql`, `0002_add_ttft_tps.sql`, `0003_add_client_ip.sql` + `_test.go`
+- Create: `internal/store/{manager,migrations,request_logger}.go`, `migrations/0001_create_requests.sql`（单文件，24 列 + 5 索引全部建表时创建，与原 `src/lib/schema.ts` 完全一致）+ `_test.go`
 
 **Interfaces:**
 - Produces:
@@ -808,9 +836,9 @@ CREATE INDEX IF NOT EXISTS idx_timestamp ON requests(timestamp);
 CREATE INDEX IF NOT EXISTS idx_user_name ON requests(user_name);
 CREATE INDEX IF NOT EXISTS idx_custom_model ON requests(custom_model);
 CREATE INDEX IF NOT EXISTS idx_created_at ON requests(created_at);
--- 0002: ALTER TABLE requests ADD COLUMN ttft_ms INTEGER; ALTER TABLE requests ADD COLUMN tps REAL;
--- 0003: ALTER TABLE requests ADD COLUMN client_ip TEXT;
 ```
+
+> 注：原项目 schema.ts 已包含 `client_ip`、`ttft_ms`、`tps` 列，无需 ALTER 迁移。仅需这一个迁移文件。
 
 - [ ] **Step 2: 写失败测试**
 
@@ -1129,6 +1157,7 @@ git add internal/auth internal/stats && git commit -m "feat(auth,stats): admin/u
   - `proxy.BuildUpstreamRequest(ctx context.Context, provider *config.ProviderConfig, body map[string]any, stream bool, apiKeys []config.ApiKey, interceptors *interceptor.Manager, ictx *interceptor.Context) (*provider.UpstreamRequest, error)`
   - `proxy.SendUpstreamRequest(ctx context.Context, req *provider.UpstreamRequest, timeout time.Duration) (*http.Response, error)`
   - `proxy.RegisterRoutes(mux *http.ServeMux, deps Dependencies)` 注册全部代理+models+health 路由
+  - 全部路由别名（对齐原 `src/server.ts`）：`/chat/completions` `/v1/chat/completions` `/v1/v1/chat/completions`；`/messages` `/v1/messages` `/v1/v1/messages`；`/responses` `/v1/responses`；`/models` `/v1/models`；`/health`
   - `proxy.Dependencies{ConfigGetter, Logger, DetailLogger, Timeout, LogDir, Interceptors}`
 
 - [ ] **Step 1: 写测试（互斥校验、404、fallback、429、超时、转换路径、流式）**
@@ -1169,6 +1198,36 @@ git add internal/proxy && git commit -m "feat(proxy): chat/messages/responses ha
 
 ---
 
+## Task 12.5: Admin/User JSON API 路由（前端数据接口）
+
+**Files:**
+- Create: `internal/server/{admin_api,user_api}.go` + `_test.go`
+
+**Interfaces:**
+- 统一 envelope: `type Envelope[T any] struct { OK bool `json:"ok"`; Data *T `json:"data,omitempty"`; Error *APIError `json:"error,omitempty"` }`
+- `admin_api.go` 注册 `/api/admin/*`：
+  - models: GET/POST `/api/admin/models`, POST `/api/admin/models/delete/:model`, `/copy/:model`, `/move/:model`, `/toggle-hidden/:model`, `/test`, `/edit/:model`
+  - model-groups: GET/POST `/api/admin/model-groups`, `/delete/:name`, `/edit/:name`, `/edit/:name/add-model`, `/remove-model`, `/move-model`, `/new`
+  - limits: GET/POST `/api/admin/models/:model/limits`, `/add`, `/delete/:index`
+  - users: GET/POST `/api/admin/users`, `/new`, `/edit/:name`, `/delete/:name`, `/toggle`, `/api`
+  - api-keys: GET/POST `/api/admin/api-keys`, `/edit/:id`, `/delete/:id`
+  - privacy: GET/POST `/api/admin/privacy`
+  - announcement: GET/POST `/api/admin/announcement`
+  - password: POST `/api/admin/password`
+  - stats/usage: GET `/api/admin/api/stats`, `/api/admin/api/usage`
+- `user_api.go` 注册 `/api/user/*`：login, logout, main(home), stats
+
+所有路由调用 config 纯函数 + SaveConfig + onConfigChange（对齐原 `src/admin/routes/*.tsx` 与 `src/user/routes/*`）。
+
+- [ ] **Step 1: 写测试（envelope 格式、鉴权、CRUD 级联、错误码） → 实现 → 验证 → 提交**
+
+```bash
+go test ./internal/server/... -race -v
+git add internal/server && git commit -m "feat(server): admin/user JSON API routes"
+```
+
+---
+
 ## Task 13: HTTP Server 组装与中间件
 
 **Files:**
@@ -1199,11 +1258,11 @@ git add internal/server && git commit -m "feat(server): HTTP assembly, middlewar
 
 **Files:**
 - Modify: `cmd/llm-gatego/main.go`
-- Create: `cmd/llm-gatego/daemon.go` + `_test.go`
+- Create: `cmd/llm-gatego/daemon.go`, `cmd/llm-gatego/stats.go` + `_test.go`
 
 **Interfaces:**
-- Consumes: `config.LoadFullConfig`, `config.CreateConfigContext`, `server.New`
-- Produces: `run(args []string) error` 可测试入口；`-C/-config-dir`、`-port`、`-timeout`、`-daemon`、`-stop`、`-debug`、`-version` 全部可用。
+- Consumes: `config.LoadFullConfig`, `config.CreateConfigContext`, `server.New`, `store.DatabaseManager`, `stats.Aggregate`
+- Produces: `run(args []string) error` 可测试入口；start flags: `-C/-config-dir`（默认 `~/.llm-gateway/`）、`-p/-port`（默认 **4000**）、`-t/-timeout`（默认 300000ms）、`-D/-daemon`、`--stop`、`--debug`、`-version`；**`stats` 子命令**：`-C`、`--date YYYY-MM-DD`、`--week YYYY-Www`、`--month YYYY-MM`、`--by-hour`、`--json`，输出模型/供应商维度请求数、成功/失败、token 统计、按时/按日分布。
 
 - [ ] **Step 1: 写测试（参数解析、pidfile 检测与陈旧清理、stop 信号流程）**
 
@@ -1222,10 +1281,10 @@ git add cmd && git commit -m "feat(cli): start/stop/daemon/pidfile"
 ## Task 15: Web 前端组件（TS WebComponents + vitest）
 
 **Files:**
-- Create: `web/tsconfig.json`, `web/vitest.config.mjs`, `web/src/{api,gw-card,gw-stat,gw-modal,gw-table,app}.ts`, `web/src/pages/*.ts`, `web/tests/*.test.ts`, `web/index.html`, `web/style.css`, `scripts/build_web.cjs`
+- Create: `web/tsconfig.json`, `web/vitest.config.mjs`, `web/src/{api,gw-card,gw-stat,gw-modal,gw-table,app}.ts`, `web/src/pages/*.ts`（对应原 14 个 admin views + 3 个 user views + Layout/TopbarNav/JsonEditor 组件）, `web/tests/*.test.ts`, `web/index.html`, `web/style.css`, `scripts/build_web.cjs`
 
 **Interfaces:**
-- Consumes: 后端 JSON API `/api/admin/*`, `/api/user/*`（返回 `{ok,data,error}` envelope）
+- Consumes: 后端 JSON API `/api/admin/*`（models CRUD+copy+move+toggle-hidden+test、model-groups CRUD+add/remove/move-model、limits add/delete、users CRUD+toggle、api-keys CRUD、privacy、announcement、password、stats、usage）与 `/api/user/*`（home/stats/login/logout），返回 `{ok,data,error}` envelope
 - Produces: `web/dist/gw-web.js`（IIFE 全局 `GwWeb`），由 Go embed 内嵌；每个组件/渲染模块有 vitest 测试。
 
 - [ ] **Step 1: 写 api.ts 与失败测试**
@@ -1291,7 +1350,7 @@ git add web scripts && git commit -m "feat(web): TS WebComponents, vitest tests,
 
 - [ ] **Step 1: 写 e2e（迁移源 19 个 e2e 测试文件的语义）**
 
-覆盖：proxy 转发、model group、rate limit、admin auth/API keys/model management/model delete cleanup、user auth/home/model access、sqlite db init、client IP logging、stream 指标、default params。每个测试启动内存 SQLite + `httptest.Server` mock LLM API。
+覆盖：proxy 转发（含 `/v1/v1/*` 别名）、model group、rate limit、admin auth/API keys/model management（copy/move/toggle-hidden/delete cleanup）/model-groups/limits/users、user auth/home/model access、sqlite db init、client IP logging、stream 指标（TTFT/TPS）、default params、CLI stats 子命令输出。每个测试启动内存 SQLite + `httptest.Server` mock LLM API。
 
 - [ ] **Step 2: 写 test-migration-map.md**
 
@@ -1328,11 +1387,11 @@ git add internal/e2e docs/test-migration-map.md && git commit -m "test: e2e suit
 
 - [ ] **Step 4: 写 `docs/uml-classes.md`**
 
-4 张 `classDiagram`：配置域、转换域、运行域、持久化域。用 `<<interface>>`、`+field: type`、`+method()`, 关系箭头（`--|>` 实现、`*--` 组合、`o--` 聚合、`..>` 依赖）。
+4 张 `classDiagram`：配置域、转换域、运行域、持久化域。用 `<<interface>>`、`+field: type`、`+method()`, Mermaid 关系语法（实现 `<|..`、组合 `*--`、聚合 `o--`、依赖 `..>`）。
 
 - [ ] **Step 5: 写 `docs/data-model.md`**
 
-1 张 `erDiagram`：requests 表 24 列 + 类型 + 5 索引说明；加上迁移历史表。
+1 张 `erDiagram`：requests 表 24 列 + 类型 + 5 索引说明（与原 `schema.ts` 完全一致，单建表，无增量 ALTER）；加上迁移记录表。
 
 - [ ] **Step 6: 验证 Mermaid 语法并提交**
 

@@ -11,7 +11,7 @@ flowchart LR
     end
 
     subgraph System["llm-gatego 单二进制"]
-        GW["HTTP 服务<br/>:8080"]
+        GW["HTTP 服务<br/>:4000"]
         Auth["鉴权<br/>admin session / user API Key"]
         Proxy["代理路由 + 格式转换"]
         Store[("SQLite<br/>gateway.db")]
@@ -150,7 +150,7 @@ flowchart TB
     end
 
     Client -->|"HTTPS"| Nginx
-    Nginx -->|"HTTP :8080"| Binary
+    Nginx -->|"HTTP :4000"| Binary
     Client -.->|"或直接访问"| Binary
 
     Binary --> PID

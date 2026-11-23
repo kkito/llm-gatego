@@ -51,11 +51,11 @@ erDiagram
 
 ## 迁移历史
 
+与原项目 `src/lib/schema.ts` 完全一致：单文件 `0001_create_requests.sql` **一次性建表 24 列 + 5 索引**（含 `client_ip`、`ttft_ms`、`tps`），无增量 ALTER 迁移。
+
 | 版本 | 文件 | 变更 |
 |---|---|---|
-| 1 | 0001_create_requests.sql | 建表 + 基础列 + 5 索引 |
-| 2 | 0002_add_ttft_tps.sql | 加 `ttft_ms INTEGER`, `tps REAL` |
-| 3 | 0003_add_client_ip.sql | 加 `client_ip TEXT` |
+| 1 | 0001_create_requests.sql | 建表 24 列 + 5 索引（含 client_ip/ttft_ms/tps） |
 
 ## 写入语义
 
