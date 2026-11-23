@@ -52,3 +52,5 @@
 - [ ] Still open: remaining 15+ e2e files' cases, full admin auth/user auth e2e, exact CSS fidelity.
 - [x] P9: page-level admin/user auth redirects (302 to login), auth-status API, login setup text parity, e2e test.
 - [ ] Still open: remaining e2e/unit cases, exact CSS fidelity.
+- [x] P10: added missing original CSS class hooks in stats/user-home/layout (navbar, heatmap legend/months, request-list, stats-table, pagination-info).
+- [ ] Still open: exhaustive e2e/unit migration and pixel-level CSS verification.
