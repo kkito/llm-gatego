@@ -126,3 +126,67 @@ func ResetForTest() {
 }
 
 func timeNowMilli() int64 { return time.Now().UnixMilli() }
+
+// QueryRows returns request log rows in the given time range (RFC3339 or empty for all).
+func (dm *DatabaseManager) QueryRows(from, to string, limit int) ([]RequestLogEntry, error) {
+	if err := dm.Initialize(); err != nil {
+		return nil, err
+	}
+	q := `SELECT request_id,timestamp,created_at,user_name,client_ip,custom_model,real_model,provider,model_group,actual_model,endpoint,status_code,duration_ms,is_streaming,ttft_ms,tps,prompt_tokens,completion_tokens,total_tokens,cached_tokens,error_message,error_type,response_metadata FROM requests WHERE 1=1`
+	args := []any{}
+	if from != "" {
+		q += ` AND timestamp >= ?`
+		args = append(args, from)
+	}
+	if to != "" {
+		q += ` AND timestamp <= ?`
+		args = append(args, to)
+	}
+	q += ` ORDER BY timestamp DESC`
+	if limit > 0 {
+		q += ` LIMIT ?`
+		args = append(args, limit)
+	}
+	rows, err := dm.db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []RequestLogEntry{}
+	for rows.Next() {
+		var e RequestLogEntry
+		var stream int
+		var ttft, prompt, completion, total, cached sql.NullInt64
+		var tps sql.NullFloat64
+		if err := rows.Scan(&e.RequestID, &e.Timestamp, &e.CreatedAt, &e.UserName, &e.ClientIP, &e.CustomModel, &e.RealModel, &e.Provider, &e.ModelGroup, &e.ActualModel, &e.Endpoint, &e.StatusCode, &e.DurationMs, &stream, &ttft, &tps, &prompt, &completion, &total, &cached, &e.ErrorMessage, &e.ErrorType, &e.ResponseMetadata); err != nil {
+			return nil, err
+		}
+		e.IsStreaming = stream != 0
+		if ttft.Valid {
+			v := int(ttft.Int64)
+			e.TTFTMs = &v
+		}
+		if prompt.Valid {
+			v := int(prompt.Int64)
+			e.PromptTokens = &v
+		}
+		if completion.Valid {
+			v := int(completion.Int64)
+			e.CompletionTokens = &v
+		}
+		if total.Valid {
+			v := int(total.Int64)
+			e.TotalTokens = &v
+		}
+		if cached.Valid {
+			v := int(cached.Int64)
+			e.CachedTokens = &v
+		}
+		if tps.Valid {
+			v := tps.Float64
+			e.TPS = &v
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
