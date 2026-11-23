@@ -44,3 +44,5 @@
 - [ ] Remaining P5: stats detail log pagination, admin detail-log polling endpoint, exact timezone handling, and view/e2e test migration.
 - [x] P5: stats detail log table + pagination in admin stats view/API.
 - [ ] Remaining P6: admin detail-log polling endpoint, exact timezone/cookie handling, complete view/e2e test migration.
+- [x] P6 partial: e2e legacy-form-alias + stats API test; view interaction tests (35 web tests total).
+- [ ] Still open: exhaustive original view/e2e test migration, exact CSS class-by-class fidelity verification, timezone/cookie behavior.

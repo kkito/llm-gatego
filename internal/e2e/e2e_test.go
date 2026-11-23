@@ -144,3 +144,17 @@ func TestE2EStreamingMetrics(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 }
+
+func TestE2ELegacyFormAliasAndStatsAPI(t *testing.T) {
+	dir := t.TempDir()
+	cfg := &config.ProxyConfig{Models: []config.ProviderConfig{{CustomModel: "m1", RealModel: "r1", BaseURL: "http://x", Provider: config.ProviderOpenAI, APIKey: "k"}}}
+	b, _ := json.Marshal(cfg)
+	os.WriteFile(filepath.Join(dir, "config.json"), b, 0644)
+	mux := server.New(cfg, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir, ConfigPath: filepath.Join(dir, "config.json")}, server.Options{})
+	// Original form POST route must not 404.
+	w := call(t, mux, "POST", "/admin/models/toggle-hidden/m1", "", nil)
+	if w.Code == http.StatusNotFound { t.Fatal(w.Code, w.Body.String()) }
+	// Stats API envelope.
+	w = call(t, mux, "GET", "/api/admin/stats", "", nil)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"ok":true`) { t.Fatal(w.Code, w.Body.String()) }
+}

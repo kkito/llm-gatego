@@ -46,3 +46,29 @@ describe('original view fidelity', () => {
     expect(userStatsPage({ userName: 'u1', start: '2026-01-01', end: '2026-01-01', totalRequests: 1, successfulRequests: 1, totalTokens: 1, avgDuration: 1, byModel: {}, byDate: {} })).toContain('使用统计 — u1')
   })
 })
+
+describe('view interaction fidelity', () => {
+  it('model form includes model-test panel for edit', () => {
+    const h = modelFormPage({ customModel: 'm1', realModel: 'gpt-4', provider: 'openai', baseUrl: 'http://x' }, [])
+    expect(h).toContain('🧪 模型测试')
+    expect(h).toContain("fetch('/admin/models/test'")
+    expect(modelFormPage(undefined, [])).not.toContain('模型测试')
+  })
+  it('stats page renders request details and pagination', () => {
+    const h = statsPage({
+      startDate: '2026-01-01', endDate: '2026-01-01', dateRange: 'x', totalRequests: 1, successfulRequests: 1, failedRequests: 0,
+      totalInputTokens: 1, totalOutputTokens: 1, totalTokens: 2, totalCachedTokens: 0, avgDuration: 1,
+      byModel: {}, byDate: {}, byHour: {}, page: 1, totalPages: 2,
+      details: [{ timestamp: '2026-01-01T00:00:00Z', userName: 'u', customModel: 'm', modelGroup: '', statusCode: 200, durationMs: 12, completionTokens: 1, promptTokens: 2, cachedTokens: 0 }],
+    })
+    expect(h).toContain('最近请求')
+    expect(h).toContain('pagination')
+    expect(h).toContain('m')
+  })
+  it('models page uses original form action URLs', () => {
+    const h = modelsPage([{ customModel: 'm/a', realModel: 'r' }])
+    expect(h).toContain('/admin/models/delete/')
+    expect(h).toContain('/admin/models/move/')
+    expect(h).toContain('/admin/models/toggle-hidden/')
+  })
+})
