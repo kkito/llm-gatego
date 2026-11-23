@@ -1,5 +1,6 @@
 import { escapeHtml } from '../format.js'
 import { css as topbarCSS } from '../styles/admin_topbar.js'
+import { consoleCSS } from '../styles/console.js'
 
 export const MENU = [
   { href: '/admin/models', label: '模型' },
@@ -17,5 +18,5 @@ export function topbar(activePath: string): string {
 }
 
 export function adminPage(title: string, activePath: string, body: string, extraStyle: string, version = '1.15.0', script = ''): string {
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(title)} - LLM Gateway</title><style>${topbarCSS}</style><style>${extraStyle}</style></head><body>${topbar(activePath)}<main class="main-content" style="padding: 2.5rem 2rem 4rem; max-width: 1280px; margin: 0 auto; animation: fadeUp 0.6s ease-out both;">${body}<div style="text-align:center;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-secondary)">v${version}</div></main>${script}</body></html>`
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(title)} - LLM Gateway</title><style>${topbarCSS}</style><style>${extraStyle}</style><style>${consoleCSS}</style></head><body>${topbar(activePath)}<main class="main-content" style="padding: 2.5rem 2rem 4rem; max-width: 1280px; margin: 0 auto; animation: fadeUp 0.6s ease-out both;">${body}<div style="text-align:center;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-secondary)">v${version}</div></main>${script}</body></html>`
 }

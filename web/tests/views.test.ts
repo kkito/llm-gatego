@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { adminPage } from '../src/views/layout.js'
 import { modelsPage } from '../src/views/models.js'
 import { groupsPage } from '../src/views/groups.js'
 import { usersPage } from '../src/views/users.js'
@@ -143,5 +144,17 @@ describe('original admin-auth view assertions', () => {
     expect(setup).toContain('设置管理员密码')
     expect(setup).not.toContain('>登录<')
     expect(adminLoginPage(false)).toContain('管理员登录')
+  })
+})
+
+describe('console shell redesign', () => {
+  it('applies centered desktop container and mobile adaptations', () => {
+    const h = adminPage('模型', '/admin/models', '<div class="stat-card"></div>', '')
+    expect(h).toContain('max-width:1180px!important')
+    expect(h).toContain('@media (max-width:768px)')
+    expect(h).toContain('overflow-x:auto')
+    expect(h).toContain('--gw-signal:#2DD4BF')
+    expect(h).toContain('prefers-reduced-motion')
+    expect(h).toContain('min-height:44px')
   })
 })

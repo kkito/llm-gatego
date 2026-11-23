@@ -27,6 +27,143 @@
   // web/src/styles/admin_topbar.ts
   var css2 = "\n        :root {\n          --bg-page: #f8f9fb;\n          --bg-card: #ffffff;\n          --text-primary: #1a1d26;\n          --text-secondary: #646a7e;\n          --accent-gradient: linear-gradient(135deg, hsl(245 80% 58%) 0%, hsl(268 75% 58%) 100%);\n          --accent-color: hsl(245 80% 58%);\n          --border-color: #e5e7eb;\n          --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);\n        }\n\n        * { margin: 0; padding: 0; box-sizing: border-box; }\n\n        body {\n          font-family: system-ui, -apple-system, sans-serif;\n          background: var(--bg-page);\n          color: var(--text-primary);\n          line-height: 1.6;\n          min-height: 100vh;\n        }\n\n        /* \u2500\u2500\u2500\u2500\u2500 \u9876\u90E8\u5BFC\u822A \u2500\u2500\u2500\u2500\u2500 */\n        .topbar {\n          background: var(--bg-card);\n          border-bottom: 1px solid var(--border-color);\n          position: sticky;\n          top: 0;\n          z-index: 100;\n          backdrop-filter: blur(12px);\n          background: rgba(255,255,255,0.88);\n        }\n        .topbar-inner {\n          max-width: 1280px;\n          margin: 0 auto;\n          padding: 0 2rem;\n          display: flex;\n          align-items: center;\n          justify-content: space-between;\n          height: 64px;\n        }\n        .topbar-brand {\n          font-family: system-ui, -apple-system, sans-serif;\n          font-weight: 700;\n          font-size: 1.2rem;\n          background: var(--accent-gradient);\n          -webkit-background-clip: text;\n          -webkit-text-fill-color: transparent;\n          text-decoration: none;\n          letter-spacing: -0.02em;\n        }\n        .topbar-nav {\n          display: flex;\n          gap: 0.25rem;\n          list-style: none;\n        }\n        .topbar-nav a {\n          text-decoration: none;\n          color: var(--text-secondary);\n          font-weight: 500;\n          font-size: 0.9rem;\n          padding: 0.5rem 0.85rem;\n          border-radius: 8px;\n        }\n        .topbar-nav a:hover {\n          color: var(--accent-color);\n          background: hsl(245 80% 96%);\n        }\n        .topbar-nav a.active {\n          color: var(--accent-color);\n          background: hsl(245 80% 94%);\n        }\n\n        @keyframes fadeUp {\n          from { opacity: 0; transform: translateY(20px); }\n          to { opacity: 1; transform: translateY(0); }\n        }\n\n        @media (max-width: 768px) {\n          .topbar-inner {\n            flex-direction: column;\n            height: auto;\n            padding: 0.75rem 1rem;\n            gap: 0.5rem;\n          }\n          .topbar-nav {\n            flex-wrap: wrap;\n            justify-content: center;\n          }\n          .main-content {\n            padding: 1.5rem 1rem 3rem !important;\n          }\n        }\n      ";
 
+  // web/src/styles/console.ts
+  var consoleCSS = `
+:root{
+  --gw-bg:#0B0F14; --gw-panel:#111821; --gw-line:#1F2A37;
+  --gw-ink:#E6EDF3; --gw-muted:#7D8DA1; --gw-signal:#2DD4BF; --gw-warn:#F59E0B;
+  color-scheme:dark;
+}
+html,body{margin:0;padding:0;background:var(--gw-bg)!important;color:var(--gw-ink)!important}
+body{font-family:Inter,"Noto Sans SC",system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--gw-signal)}
+:focus-visible{outline:2px solid var(--gw-signal);outline-offset:3px}
+
+.topbar{
+  position:sticky;top:0;z-index:100;background:rgba(11,15,20,.92)!important;
+  border-bottom:1px solid var(--gw-line)!important;backdrop-filter:blur(14px);
+}
+.topbar-inner{
+  max-width:1180px!important;margin:0 auto!important;height:auto!important;
+  min-height:64px;padding:12px 20px!important;gap:16px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.topbar-brand{
+  font-family:"IBM Plex Mono",ui-monospace,monospace!important;
+  font-size:1rem!important;letter-spacing:-.02em!important;color:var(--gw-ink)!important;
+  background:none!important;-webkit-text-fill-color:var(--gw-ink)!important;
+  display:flex;align-items:center;gap:10px;white-space:nowrap;
+}
+.topbar-brand::before{content:"\u25C8";color:var(--gw-signal);font-size:1.25rem}
+.topbar-nav{
+  display:flex;gap:4px;list-style:none;margin:0;padding:0;
+  overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+}
+.topbar-nav::-webkit-scrollbar{display:none}
+.topbar-nav a{
+  font-family:Inter,"Noto Sans SC",system-ui,sans-serif!important;
+  font-size:.82rem!important;font-weight:600!important;color:var(--gw-muted)!important;
+  padding:8px 12px!important;border-radius:8px;white-space:nowrap;
+  background:transparent!important;border:1px solid transparent!important;
+}
+.topbar-nav a:hover{color:var(--gw-ink)!important;background:#151E29!important}
+.topbar-nav a.active{
+  color:var(--gw-signal)!important;background:rgba(45,212,191,.08)!important;
+  border-color:rgba(45,212,191,.28)!important;
+}
+
+.main-content{
+  max-width:1180px!important;margin:0 auto!important;
+  padding:32px 20px 64px!important;
+}
+.main-content>*:first-child{margin-top:0}
+.main-content h1,.main-content h2,.main-content h3{color:var(--gw-ink)!important;letter-spacing:-.01em}
+.main-content .stat-card,.main-content .stats-card,.main-content .stat-mini,
+.main-content .section-card,.main-content .card,.main-content .form-card{
+  background:var(--gw-panel)!important;border:1px solid var(--gw-line)!important;
+  border-radius:12px!important;box-shadow:0 12px 30px rgba(0,0,0,.18)!important;
+}
+.main-content table{
+  border-collapse:separate!important;border-spacing:0!important;width:100%;
+  display:block;overflow-x:auto;white-space:nowrap;
+}
+.main-content table th,.main-content table td{
+  border-bottom:1px solid var(--gw-line)!important;color:var(--gw-ink)!important;
+  font-size:.85rem!important;padding:10px 12px!important;
+}
+.main-content table th{
+  background:#151E29!important;color:var(--gw-muted)!important;
+  font-family:"IBM Plex Mono",ui-monospace,monospace!important;
+  font-weight:600!important;text-transform:uppercase;letter-spacing:.06em;
+}
+.main-content input,.main-content select,.main-content textarea{
+  background:#0E151E!important;border:1px solid var(--gw-line)!important;
+  color:var(--gw-ink)!important;border-radius:8px!important;
+}
+.main-content input:focus,.main-content select:focus,.main-content textarea:focus{
+  border-color:var(--gw-signal)!important;outline:none;
+}
+.main-content button,.main-content .btn{
+  font-family:Inter,"Noto Sans SC",system-ui,sans-serif!important;
+  min-height:36px;
+}
+.main-content .btn-primary{
+  background:var(--gw-signal)!important;color:#06231F!important;border-color:var(--gw-signal)!important;
+  font-weight:700!important;
+}
+.main-content .model-tag,.main-content .badge{
+  font-family:"IBM Plex Mono",ui-monospace,monospace!important;
+  border:1px solid var(--gw-line)!important;background:#151E29!important;color:var(--gw-muted)!important;
+}
+
+.login-card{
+  background:var(--gw-panel)!important;border:1px solid var(--gw-line)!important;
+  border-radius:14px!important;box-shadow:0 20px 50px rgba(0,0,0,.35)!important;
+  color:var(--gw-ink)!important;margin:8vh auto!important;padding:32px!important;
+  max-width:420px!important;width:calc(100% - 28px)!important;
+}
+.login-card h1,.login-title{color:var(--gw-ink)!important;font-family:"IBM Plex Mono",ui-monospace,monospace!important}
+.login-card .form-input,.login-card input[type=password]{
+  background:#0E151E!important;border:1px solid var(--gw-line)!important;color:var(--gw-ink)!important;
+  border-radius:8px!important;padding:10px 12px!important;min-height:44px;
+}
+.login-card .btn-primary{background:var(--gw-signal)!important;color:#06231F!important;border:0!important;font-weight:700!important;min-height:44px}
+
+/* Signature: one quiet oscilloscope rail on metric cards. */
+.main-content .stat-card,.main-content .stats-card,.main-content .stat-mini{position:relative;overflow:hidden}
+.main-content .stat-card::before,.main-content .stats-card::before,.main-content .stat-mini::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:2px;
+  background:linear-gradient(180deg,transparent,var(--gw-signal),transparent);
+  opacity:.8;
+}
+
+@media (max-width:768px){
+  .topbar{position:relative}
+  .topbar-inner{flex-direction:column;align-items:stretch;gap:8px;padding:10px 14px!important}
+  .topbar-nav{width:100%;padding-bottom:2px}
+  .topbar-nav li{flex:0 0 auto}
+  .topbar-nav a{padding:9px 12px!important;font-size:.8rem!important}
+  .main-content{padding:20px 14px 48px!important}
+  .main-content [class*="grid"],.main-content .stats-grid{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;
+  }
+  .main-content form{max-width:100%!important}
+  .main-content button,.main-content .btn{min-height:44px}
+  .main-content table th,.main-content table td{padding:9px 10px!important}
+  .main-content table th:first-child,.main-content table td:first-child{
+    position:sticky;left:0;background:var(--gw-panel)!important;z-index:2;
+  }
+  .main-content table th:first-child{background:#151E29!important}
+}
+@media (max-width:420px){
+  .main-content [class*="grid"],.main-content .stats-grid{grid-template-columns:1fr!important}
+  .login-card{margin:4vh auto!important;padding:24px 18px!important}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+`;
+
   // web/src/views/layout.ts
   var MENU = [
     { href: "/admin/models", label: "\u6A21\u578B" },
@@ -42,7 +179,7 @@
     return `<nav class="topbar"><div class="topbar-inner"><a href="/admin/models" class="topbar-brand">LLM Gateway</a><ul class="topbar-nav">${MENU.map((m) => `<li><a href="${m.href}" class="${activePath === m.href ? "active" : ""}">${m.label}</a></li>`).join("")}</ul></div></nav>`;
   }
   function adminPage(title, activePath, body, extraStyle, version = "1.15.0", script = "") {
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(title)} - LLM Gateway</title><style>${css2}</style><style>${extraStyle}</style></head><body>${topbar(activePath)}<main class="main-content" style="padding: 2.5rem 2rem 4rem; max-width: 1280px; margin: 0 auto; animation: fadeUp 0.6s ease-out both;">${body}<div style="text-align:center;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-secondary)">v${version}</div></main>${script}</body></html>`;
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>${escapeHtml(title)} - LLM Gateway</title><style>${css2}</style><style>${extraStyle}</style><style>${consoleCSS}</style></head><body>${topbar(activePath)}<main class="main-content" style="padding: 2.5rem 2rem 4rem; max-width: 1280px; margin: 0 auto; animation: fadeUp 0.6s ease-out both;">${body}<div style="text-align:center;margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-color);font-size:0.75rem;color:var(--text-secondary)">v${version}</div></main>${script}</body></html>`;
   }
 
   // web/src/views/models.ts
@@ -263,10 +400,10 @@ ${(s.details || []).length ? `<div class="stats-section-card"><h2 class="stats-s
 
   // web/src/views/login.ts
   function adminLoginPage(isSetup, error) {
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7BA1\u7406\u5458\u767B\u5F55 - LLM Gateway</title><style>${adminLoginCSS}</style></head><body><div class="login-card"><h1 class="login-title">${isSetup ? "\u{1F510} \u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801" : "\u{1F510} \u7BA1\u7406\u5458\u767B\u5F55"}</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}${isSetup ? '<div class="alert alert-warning">\u9996\u6B21\u4F7F\u7528\u8BF7\u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801</div>' : ""}<form method="POST" action="/api/admin/login"><div class="form-group"><label class="form-label" for="password">\u5BC6\u7801</label><input class="form-input" type="password" id="password" name="password" placeholder="\u8BF7\u8F93\u5165\u5BC6\u7801" required></div><button type="submit" class="btn btn-primary">${isSetup ? "\u8BBE\u7F6E\u5BC6\u7801" : "\u767B\u5F55"}</button></form></div></body></html>`;
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7BA1\u7406\u5458\u767B\u5F55 - LLM Gateway</title><style>${adminLoginCSS}</style><style>${consoleCSS}</style></head><body><div class="login-card"><h1 class="login-title">${isSetup ? "\u{1F510} \u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801" : "\u{1F510} \u7BA1\u7406\u5458\u767B\u5F55"}</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}${isSetup ? '<div class="alert alert-warning">\u9996\u6B21\u4F7F\u7528\u8BF7\u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801</div>' : ""}<form method="POST" action="/api/admin/login"><div class="form-group"><label class="form-label" for="password">\u5BC6\u7801</label><input class="form-input" type="password" id="password" name="password" placeholder="\u8BF7\u8F93\u5165\u5BC6\u7801" required></div><button type="submit" class="btn btn-primary">${isSetup ? "\u8BBE\u7F6E\u5BC6\u7801" : "\u767B\u5F55"}</button></form></div></body></html>`;
   }
   function userLoginPage(error) {
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7528\u6237\u767B\u5F55 - LLM Gateway</title><style>${css12}</style></head><body><div class="login-card"><h1>\u7528\u6237\u767B\u5F55</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}<form method="POST" action="/api/user/login"><div class="form-group"><label for="apikey">API Key</label><input type="password" id="apikey" name="apikey" placeholder="\u8BF7\u8F93\u5165 API Key" required></div><button type="submit" class="btn btn-primary">\u767B\u5F55</button></form></div></body></html>`;
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u7528\u6237\u767B\u5F55 - LLM Gateway</title><style>${css12}</style><style>${consoleCSS}</style></head><body><div class="login-card"><h1>\u7528\u6237\u767B\u5F55</h1>${error ? `<div class="alert alert-error">${error}</div>` : ""}<form method="POST" action="/api/user/login"><div class="form-group"><label for="apikey">API Key</label><input type="password" id="apikey" name="apikey" placeholder="\u8BF7\u8F93\u5165 API Key" required></div><button type="submit" class="btn btn-primary">\u767B\u5F55</button></form></div></body></html>`;
   }
 
   // web/src/styles/user_home.ts
@@ -691,7 +828,7 @@ ${(s.details || []).length ? `<div class="stats-section-card"><h2 class="stats-s
   // web/src/views/userHome.ts
   function userHomePage(p) {
     const cfg = JSON.stringify({ openai: { baseURL: location.origin + "/v1", apiKey: "sk-your-api-key" } }, null, 2);
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>LLM Gateway - \u914D\u7F6E\u4FE1\u606F</title><style>${css13}</style></head><body><div class="container-fluid"><div class="navbar"><a class="navbar-brand" href="/user/main">LLM Gateway</a><div class="navbar-menu"><a class="navbar-link" href="/user/stats">\u7EDF\u8BA1</a></div></div><div class="container"><div class="hero"><h1>\u{1F680} LLM Gateway</h1><p class="hero-subtitle">\u7EDF\u4E00\u7684\u5927\u6A21\u578B API \u7F51\u5173\uFF0C\u517C\u5BB9 OpenAI / Anthropic / Responses \u683C\u5F0F</p><a href="/user/stats" style="color:var(--primary);text-decoration:none;margin-right:0.75rem;font-size:0.8rem">\u7EDF\u8BA1</a></div>
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>LLM Gateway - \u914D\u7F6E\u4FE1\u606F</title><style>${css13}</style><style>${consoleCSS}</style></head><body><div class="container-fluid"><div class="navbar"><a class="navbar-brand" href="/user/main">LLM Gateway</a><div class="navbar-menu"><a class="navbar-link" href="/user/stats">\u7EDF\u8BA1</a></div></div><div class="container"><div class="hero"><h1>\u{1F680} LLM Gateway</h1><p class="hero-subtitle">\u7EDF\u4E00\u7684\u5927\u6A21\u578B API \u7F51\u5173\uFF0C\u517C\u5BB9 OpenAI / Anthropic / Responses \u683C\u5F0F</p><a href="/user/stats" style="color:var(--primary);text-decoration:none;margin-right:0.75rem;font-size:0.8rem">\u7EDF\u8BA1</a></div>
 ${p.announcement ? `<div class="announcement-banner">${p.announcement}</div>` : ""}
 ${p.userName ? `<p>\u6B22\u8FCE\uFF0C${escapeHtml(p.userName)}</p>` : ""}
 <div class="card"><div class="card-header"><span class="card-icon">\u{1F4CB}</span><h2>JSON \u914D\u7F6E</h2></div><div class="input-wrapper"><pre class="input-value" id="json-config">${escapeHtml(cfg)}</pre><button id="copy-json" class="copy-btn">\u590D\u5236</button></div></div>
@@ -705,7 +842,7 @@ ${p.modelGroups.length ? `<div class="model-group-toggle"><div class="toggle-opt
   // web/src/views/userStats.ts
   function userStatsPage(s) {
     const successPct = s.totalRequests ? s.successfulRequests / s.totalRequests * 100 : 0;
-    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u4F7F\u7528\u7EDF\u8BA1 - LLM Gateway</title><style>:root{--primary:#6366f1;--green-gradient:linear-gradient(135deg,#10b981,#059669);--border:#e5e7eb}body{font-family:system-ui,sans-serif;background:#f8fafc;padding:2rem;color:#1f2937}.stats-page-title{font-size:1.6rem}.stats-page-subtitle{color:#6b7280}.filter-bar{display:flex;gap:1rem;margin:1.5rem 0}.filter-group{display:flex;flex-direction:column;gap:.25rem}.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.overview-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:1.2rem}.overview-card--blue{border-top:3px solid #3b82f6}.overview-card--green{border-top:3px solid #10b981}.overview-card--orange{border-top:3px solid #f59e0b}.overview-card--purple{border-top:3px solid #8b5cf6}.overview-card-value{font-size:1.6rem;font-weight:700}</style></head><body><h1 class="stats-page-title">\u{1F4CA} \u4F7F\u7528\u7EDF\u8BA1 \u2014 ${escapeHtml(s.userName)}</h1><p class="stats-page-subtitle">\u67E5\u770B API \u4F7F\u7528\u60C5\u51B5\u4E0E\u7EDF\u8BA1\u6570\u636E</p><div class="filter-bar"><form method="get" action="/user/stats" class="filter-form"><div class="filter-group"><label for="start">\u5F00\u59CB\u65E5\u671F</label><input type="date" id="start" name="startDate" value="${s.start}"></div><div class="filter-group"><label for="end">\u7ED3\u675F\u65E5\u671F</label><input type="date" id="end" name="endDate" value="${s.end}"></div><button type="submit" class="filter-submit">\u67E5\u8BE2</button></form></div>
+    return `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><title>\u4F7F\u7528\u7EDF\u8BA1 - LLM Gateway</title><style>:root{--primary:#6366f1;--green-gradient:linear-gradient(135deg,#10b981,#059669);--border:#e5e7eb}body{font-family:system-ui,sans-serif;background:#f8fafc;padding:2rem;color:#1f2937}.stats-page-title{font-size:1.6rem}.stats-page-subtitle{color:#6b7280}.filter-bar{display:flex;gap:1rem;margin:1.5rem 0}.filter-group{display:flex;flex-direction:column;gap:.25rem}.overview-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.overview-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:1.2rem}.overview-card--blue{border-top:3px solid #3b82f6}.overview-card--green{border-top:3px solid #10b981}.overview-card--orange{border-top:3px solid #f59e0b}.overview-card--purple{border-top:3px solid #8b5cf6}.overview-card-value{font-size:1.6rem;font-weight:700}</style><style>${consoleCSS}</style></head><body><h1 class="stats-page-title">\u{1F4CA} \u4F7F\u7528\u7EDF\u8BA1 \u2014 ${escapeHtml(s.userName)}</h1><p class="stats-page-subtitle">\u67E5\u770B API \u4F7F\u7528\u60C5\u51B5\u4E0E\u7EDF\u8BA1\u6570\u636E</p><div class="filter-bar"><form method="get" action="/user/stats" class="filter-form"><div class="filter-group"><label for="start">\u5F00\u59CB\u65E5\u671F</label><input type="date" id="start" name="startDate" value="${s.start}"></div><div class="filter-group"><label for="end">\u7ED3\u675F\u65E5\u671F</label><input type="date" id="end" name="endDate" value="${s.end}"></div><button type="submit" class="filter-submit">\u67E5\u8BE2</button></form></div>
 ${s.totalRequests ? `<div class="overview-grid"><div class="overview-card overview-card--blue"><div class="overview-card-label">\u603B\u8BF7\u6C42\u6570</div><div class="overview-card-value">${formatNumber(s.totalRequests)}</div><div class="overview-card-sub">\u6240\u6709 API \u8BF7\u6C42</div></div><div class="overview-card overview-card--green"><div class="overview-card-label">\u6210\u529F\u7387</div><div class="overview-card-value">${successPct.toFixed(1)}%</div><div class="overview-card-sub">${formatNumber(s.successfulRequests)} / ${formatNumber(s.totalRequests)}</div></div><div class="overview-card overview-card--orange"><div class="overview-card-label">\u603B Token</div><div class="overview-card-value">${formatNumber(s.totalTokens)}</div><div class="overview-card-sub">\u8F93\u5165 + \u8F93\u51FA</div></div><div class="overview-card overview-card--purple"><div class="overview-card-label">\u5E73\u5747\u5EF6\u8FDF</div><div class="overview-card-value">${formatDuration(s.avgDuration)}</div><div class="overview-card-sub">\u6BCF\u6B21\u8BF7\u6C42\u8017\u65F6</div></div></div><div class="token-card"><h2 class="token-card-title">\u{1F4C8} Token \u7528\u91CF\u660E\u7EC6</h2><table><thead><tr><th>\u6A21\u578B</th><th>\u8BF7\u6C42\u6570</th><th>Token</th></tr></thead><tbody>${Object.entries(s.byModel).map(([m, v]) => `<tr><td>${escapeHtml(m)}</td><td>${v.requests}</td><td>${formatNumber(v.totalTokens)}</td></tr>`).join("")}</tbody></table></div>` : '<div class="empty-state"><div class="empty-state-icon">\u{1F4ED}</div><div class="empty-state-text">\u6682\u65E0\u7EDF\u8BA1\u6570\u636E</div></div>'}</body></html>`;
   }
 
