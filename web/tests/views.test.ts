@@ -10,6 +10,7 @@ import { userStatsPage } from '../src/views/userStats.js'
 import { apiKeysPage } from '../src/views/apiKeys.js'
 import { modelLimitsPage } from '../src/views/modelLimits.js'
 import { modelFormPage } from '../src/views/modelForm.js'
+import { passwordPage } from '../src/views/password.js'
 import { announcementPage } from '../src/views/announcement.js'
 
 describe('original view fidelity', () => {
@@ -179,4 +180,25 @@ it('group create form submits selected models', () => {
   expect(h).toContain('name="modelCheckbox"')
   expect(h).toContain('value="m1"')
   expect(h).toContain('input[name="models"]')
+})
+
+describe('unified shell coverage for remaining pages', () => {
+  it('all remaining admin pages use the shared shell', () => {
+    const pages = [
+      modelFormPage({ customModel: 'm', realModel: 'r' }, []),
+      modelLimitsPage('m', []),
+      announcementPage('hello'),
+      passwordPage(true),
+      privacyPage({ enabled: false, stripUserField: false, sanitizeFilePaths: false, pathPlaceholder: 'USER', whitelistFilter: false }),
+      userFormPage({ name: 'u' }, []),
+      groupFormPage({ name: 'g', models: [] }, []),
+    ]
+    for (const h of pages) {
+      expect(h).toContain('ui-topbar')
+      expect(h).toContain('ui-main')
+      expect(h).toContain('ui-nav-link')
+      expect(h).toContain('ui-page-head')
+      expect(h).toContain('ui-panel')
+    }
+  })
 })
