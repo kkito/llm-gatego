@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/kkito/llm-gatego/internal/config"
+	"github.com/kkito/llm-gatego/internal/interceptor"
 	"github.com/kkito/llm-gatego/internal/provider"
 )
 
@@ -95,8 +96,8 @@ func handleModelTest(w http.ResponseWriter, r *http.Request, d APIDeps) {
 	if len(in.DefaultParams) > 0 {
 		reqBody = deepMergeAny(in.DefaultParams, reqBody)
 	}
+	headers, reqBody := applyModelTestInterceptors(pc, reqBody)
 	reqJSON, _ := json.Marshal(reqBody)
-	headers := p.BuildHeaders(key)
 	client := &http.Client{Timeout: 60 * time.Second}
 	if in.Proxy != "" {
 		if pu, err := url.Parse(in.Proxy); err == nil {
@@ -244,4 +245,19 @@ func extractTestContent(data map[string]any, isResponses bool) (string, string) 
 		}
 	}
 	return content, reasoning
+}
+
+func applyModelTestInterceptors(pc *config.ProviderConfig, body map[string]any) (map[string]string, map[string]any) {
+	headers := map[string]string{}
+	for k, v := range provider.GetProvider(pc).BuildHeaders(pc.APIKey) {
+		headers[k] = v
+	}
+	req := &interceptor.UpstreamRequest{
+		URL:     pc.BaseURL,
+		Headers: headers,
+		Body:    body,
+	}
+	ctx := &interceptor.Context{Provider: pc, RequestPath: "/v1/chat/completions", CustomModel: pc.CustomModel}
+	req, _ = interceptor.OpencodeSession(req, ctx)
+	return req.Headers, req.Body
 }

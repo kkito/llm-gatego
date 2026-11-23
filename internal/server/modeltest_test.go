@@ -98,3 +98,36 @@ func TestModelTestResponseUsesFlatShape(t *testing.T) {
 		t.Fatalf("flatErr=%+v body=%s", flatErr, w.Body.String())
 	}
 }
+
+func TestModelTestAddsOpencodeSessionHeaders(t *testing.T) {
+	var gotHeader string
+	var gotBody map[string]any
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotHeader = r.Header.Get("x-opencode-session")
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"model":"r","choices":[{"message":{"content":"Hi"}}]}`))
+	}))
+	defer up.Close()
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"models":[]}`), 0644)
+	cfg := &config.ProxyConfig{}
+	d := APIDeps{ConfigDir: dir, Get: func() *config.ProxyConfig { return cfg }}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/admin/models/test", func(w http.ResponseWriter, r *http.Request) { handleModelTest(w, r, d) })
+	baseURL := up.URL + "/opencode.ai"
+	body := `{"provider":"openai","baseUrl":"` + baseURL + `","apiKey":"sk-test","realModel":"r","message":"Q"}`
+	req := httptest.NewRequest("POST", "/api/admin/models/test", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	if gotHeader == "" {
+		t.Fatal("missing x-opencode-session")
+	}
+	if gotBody["prompt_cache_key"] != gotHeader {
+		t.Fatal(gotBody, gotHeader)
+	}
+}
