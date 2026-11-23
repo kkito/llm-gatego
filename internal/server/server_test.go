@@ -56,3 +56,13 @@ func TestViewRoutesServeShell(t *testing.T) {
 		}
 	}
 }
+
+func TestLegacyFormAlias(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"models":[]}`), 0644)
+	h := New(&config.ProxyConfig{}, proxy.Dependencies{}, config.ConfigContext{ConfigDir: dir}, Options{})
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("POST", "/admin/models/delete/nope", nil)
+	h.ServeHTTP(w, req)
+	if w.Code == 404 { t.Fatal("legacy alias unexpectedly 404") }
+}
