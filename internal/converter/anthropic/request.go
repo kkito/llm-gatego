@@ -221,6 +221,9 @@ func ChatToAnthropicRequest(req map[string]any) map[string]any {
 			content := ConvertOpenAIContent(asSlice(msg["content"]))
 			if asString(msg["content"]) != "" {
 				content = []any{map[string]any{"type": "text", "text": asString(msg["content"])}}
+			} else if msg["content"] == nil {
+				// convertOpenAIContent(null) → [{type:text, text:''}]
+				content = []any{map[string]any{"type": "text", "text": ""}}
 			}
 			if systemContent != "" && len(messages) == 0 {
 				content = append([]any{map[string]any{"type": "text", "text": systemContent + "\n\n"}}, content...)
