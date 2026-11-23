@@ -19,7 +19,7 @@ func TestProxyDepsReloadsConfigAfterAdminWrite(t *testing.T) {
 	}
 	ctx := config.ConfigContext{ConfigDir: dir, ConfigPath: path}
 	deps := proxyDeps(cfg, ctx, 1000)
-	updated := &config.ProxyConfig{Models: []config.ProviderConfig{{CustomModel: "m1"}}}
+	updated := &config.ProxyConfig{Models: []config.ProviderConfig{{CustomModel: "m1", RealModel: "r1", APIKey: "k", BaseURL: "http://x", Provider: config.ProviderOpenAI}}}
 	b, _ = json.Marshal(updated)
 	if err := os.WriteFile(path, b, 0600); err != nil {
 		t.Fatal(err)
