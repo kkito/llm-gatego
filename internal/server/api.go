@@ -288,6 +288,40 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 		}
 		okJSON(w, in)
 	})
+	mux.HandleFunc("POST /api/admin/model-groups/edit/{name}", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Name   string   `json:"name"`
+			Desc   string   `json:"desc"`
+			Models []string `json:"models"`
+		}
+		if !readJSON(w, r, &in) {
+			return
+		}
+		cfg, err := d.load()
+		if err != nil {
+			fail(w, 500, err.Error())
+			return
+		}
+		old := r.PathValue("name")
+		for i := range cfg.ModelGroups {
+			if cfg.ModelGroups[i].Name == old {
+				if in.Name != "" {
+					cfg.ModelGroups[i].Name = in.Name
+				}
+				cfg.ModelGroups[i].Desc = in.Desc
+				if in.Models != nil {
+					cfg.ModelGroups[i].Models = in.Models
+				}
+				if err := d.save(cfg); err != nil {
+					fail(w, 500, err.Error())
+					return
+				}
+				okJSON(w, cfg.ModelGroups[i])
+				return
+			}
+		}
+		fail(w, 404, "group not found")
+	})
 	mux.HandleFunc("POST /api/admin/model-groups/delete/{name}", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
 		if err != nil {
@@ -439,7 +473,10 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 		okJSON(w, *cfg.PrivacySettings)
 	})
 	mux.HandleFunc("POST /api/admin/privacy", func(w http.ResponseWriter, r *http.Request) {
-		var in config.PrivacySettings
+		var in struct {
+			config.PrivacySettings
+			DetailLogEnabled *bool `json:"detailLogEnabled"`
+		}
 		if !readJSON(w, r, &in) {
 			return
 		}
@@ -448,12 +485,15 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		cfg.PrivacySettings = &in
+		cfg.PrivacySettings = &in.PrivacySettings
+		if in.DetailLogEnabled != nil {
+			cfg.DetailLogEnabled = *in.DetailLogEnabled
+		}
 		if err := d.save(cfg); err != nil {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, in)
+		okJSON(w, in.PrivacySettings)
 	})
 	mux.HandleFunc("GET /api/admin/auth-status", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()

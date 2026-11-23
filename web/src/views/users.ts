@@ -10,7 +10,7 @@ export function usersPage(users: UserView[], enabled = true, error?: string, ver
       <div class="ui-row">${!u.allowedModels || u.allowedModels.length === 0 ? '<span class="ui-badge">所有模型</span>' : u.allowedModels.slice(0, 3).map(m => `<span class="ui-badge">${escapeHtml(m)}</span>`).join('')}${(u.allowedModels?.length || 0) > 3 ? `<span class="ui-field-hint">等${u.allowedModels!.length - 3}个模型</span>` : ''}</div>
       <div class="ui-row" style="margin-top:14px"><form method="POST" action="/api/admin/users/delete/${encodeURIComponent(u.name)}"><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form></div>
     </div></article>`).join('')
-  const toggle = `<form method="post" action="/api/admin/users/toggle"><input type="hidden" name="enabled" value="${enabled ? 'false' : 'true'}"><button class="ui-btn">${enabled ? '禁用用户认证' : '启用用户认证'}</button></form>`
+  const toggle = `<form method="post" action="/admin/users/toggle"><input type="hidden" name="enabled" value="${enabled ? 'false' : 'true'}"><button class="ui-btn">${enabled ? '禁用用户认证' : '启用用户认证'}</button></form>`
   const body = pageHeader({ eyebrow: 'Access', title: '用户管理', subtitle: '管理访问 API 的用户和密钥', actions: `<a class="ui-btn ui-btn-primary" href="/admin/users/new">+ 新增用户</a>${toggle}` }) +
     (error ? notice(error, 'error') : '') +
     (users.length ? `<div class="ui-grid ui-grid-auto">${cards}</div>` : panel('用户列表', '', empty('暂无用户', '添加用户后即可按密钥限制访问。')))

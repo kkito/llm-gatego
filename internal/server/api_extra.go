@@ -176,11 +176,15 @@ func registerStatsAPI(mux *http.ServeMux, d APIDeps) {
 		}
 		// Original heatmap always returns a 182-day zero-filled series.
 		heatLoc, _ := time.LoadLocation(tz)
-		if heatLoc == nil { heatLoc = time.UTC }
+		if heatLoc == nil {
+			heatLoc = time.UTC
+		}
 		today := time.Now().In(heatLoc)
 		for i := 181; i >= 0; i-- {
 			d := today.AddDate(0, 0, -i).Format("2006-01-02")
-			if _, exists := byDate[d]; !exists { byDate[d] = 0 }
+			if _, exists := byDate[d]; !exists {
+				byDate[d] = 0
+			}
 		}
 		payload := map[string]any{
 			"ok": true, "success": true,
@@ -314,6 +318,7 @@ func registerMiscAdminAPI(mux *http.ServeMux, d APIDeps) {
 	mux.HandleFunc("POST /api/admin/announcement", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
 			Content string `json:"content"`
+			Enabled *bool  `json:"enabled"`
 		}
 		if !readJSON(w, r, &in) {
 			return
@@ -327,6 +332,9 @@ func registerMiscAdminAPI(mux *http.ServeMux, d APIDeps) {
 			cfg.UiSettings = &config.UiSettings{}
 		}
 		cfg.UiSettings.AnnouncementMarkdown = in.Content
+		if in.Enabled != nil {
+			cfg.UiSettings.Enabled = *in.Enabled
+		}
 		if err := d.save(cfg); err != nil {
 			fail(w, 500, err.Error())
 			return
