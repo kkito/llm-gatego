@@ -76,6 +76,12 @@ export async function renderAdmin(ctx: PageContext): Promise<string> {
     const models = (await api<any[]>('/api/admin/models')).data || []
     return userFormPage(u, models.map((x: any) => x.customModel))
   }
+  if ((m = path.match(/^\/admin\/api-keys\/edit\/(.+)$/))) {
+    const all = (await api<any[]>('/api/admin/api-keys')).data || []
+    const k = all.find(x => x.id === decodeURIComponent(m![1]))
+    if (!k) return apiKeysPage(all, '未找到该 API Key')
+    return apiKeysPage(all, undefined, undefined, '1.15.0', { id: k.id, name: k.name, keyHint: k.keyHint || '*****' })
+  }
   const fn = renderers[path]
   if (!fn) return modelsPage([], `Page not implemented: ${path}`, ctx.version)
   try { return await fn(ctx) } catch (e) { return modelsPage([], (e as Error).message, ctx.version) }

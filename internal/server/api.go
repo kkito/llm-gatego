@@ -264,7 +264,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 		}
 		keys := []map[string]any{}
 		for _, k := range cfg.ApiKeys {
-			keys = append(keys, map[string]any{"id": k.ID, "name": k.Name, "key": config.MaskAPIKey(k.Key), "createdAt": k.CreatedAt, "updatedAt": k.UpdatedAt})
+			keys = append(keys, map[string]any{"id": k.ID, "name": k.Name, "key": config.MaskAPIKey(k.Key), "keyHint": config.MaskAPIKey(k.Key), "createdAt": k.CreatedAt, "updatedAt": k.UpdatedAt})
 		}
 		okJSON(w, keys)
 	})

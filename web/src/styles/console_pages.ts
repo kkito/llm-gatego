@@ -25,7 +25,8 @@ export const pageCSS = `
 .user-info{font-size:.8rem;color:var(--gw-muted)}
 
 /* API Keys */
-.key-card{padding:16px 18px}
+.two-col:has(.keys-section){grid-template-columns:minmax(0,1.35fr) minmax(0,1fr)}
+.key-card{padding:16px 18px;border-left:3px solid var(--gw-accent)!important}
 .key-header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .key-name{display:flex;align-items:center;gap:8px;font-weight:700}
 .key-value{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:.78rem;background:#F9FAFB;border:1px solid var(--gw-line);border-radius:7px;padding:8px 10px;word-break:break-all}
