@@ -138,11 +138,29 @@ func validateModelGroups(cfg *ProxyConfig) error {
 	return nil
 }
 
+// DefaultConfig returns a fresh empty configuration with non-nil collections.
+func DefaultConfig() *ProxyConfig {
+	return &ProxyConfig{
+		Models:      []ProviderConfig{},
+		ApiKeys:     []ApiKey{},
+		UserApiKeys: []UserApiKey{},
+		UiSettings:  &UiSettings{},
+	}
+}
+
 // LoadFullConfig loads and validates the complete config file (object or legacy array).
 func LoadFullConfig(path string) (*ProxyConfig, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("config file not found: %s", path)
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("config file not found: %s", path)
+		}
+		// First run: create an empty config so the admin UI and APIs can boot.
+		cfg := DefaultConfig()
+		if saveErr := SaveConfig(cfg, path); saveErr != nil {
+			return nil, fmt.Errorf("failed to create default config: %w", saveErr)
+		}
+		return cfg, nil
 	}
 	var v any
 	if err := json.Unmarshal(b, &v); err != nil {
