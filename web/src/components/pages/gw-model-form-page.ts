@@ -1,4 +1,5 @@
 import { html, type TemplateResult } from 'lit'
+import { formToObject, postAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
@@ -73,6 +74,17 @@ export class GwModelFormPage extends GwPage {
     s.style.display = s.style.display === 'none' ? 'block' : 'none'
   }
 
+  private async submit(e: Event): Promise<void> {
+    e.preventDefault()
+    const form = e.currentTarget as HTMLFormElement
+    const payload = formToObject(form)
+    const editor = this.shadowRoot!.querySelector('gw-json-editor') as any
+    try { payload.defaultParams = JSON.parse(editor?.value || '{}') } catch { payload.defaultParams = {} }
+    const isEdit = !!this.data.model?.customModel
+    const url = isEdit ? `/api/admin/models/edit/${encodeURIComponent(this.data.model!.customModel!)}` : '/api/admin/models'
+    try { await postAndNavigate(url, payload) } catch (err) { this.error = (err as Error).message }
+  }
+
   protected load(): Promise<void> {
     return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
@@ -99,7 +111,7 @@ export class GwModelFormPage extends GwPage {
     return html`
 ${pageHeader({ eyebrow: 'MODEL', title, subtitle: isEdit ? '修改模型配置与 API Key 引用' : '创建新的上游模型配置', actions: html`<a class="ui-btn" href="/admin/models">返回模型</a>` })}
 ${err ? notice(err, 'error') : ''}
-${panel('模型配置', '', html`<div class="form-card"><form method="post" action=${isEdit ? `/admin/models/edit/${encodeURIComponent(model.customModel!)}` : '/admin/models'}>
+${panel('模型配置', '', html`<div class="form-card"><form @submit=${(e: Event) => this.submit(e)}>
   <div class="form-group"><label class="form-label" for="customModel">模型名称</label><input class="form-input" id="customModel" name="customModel" value=${model.customModel || ''} placeholder="例如：my-gpt4" required><span class="form-hint">调用 API 时使用此名称</span></div>
   <div class="form-group"><label class="form-label" for="realModel">实际模型名称</label><input class="form-input" id="realModel" name="realModel" value=${model.realModel || ''} placeholder="例如：gpt-4" required><span class="form-hint">上游 API 支持的模型名称</span></div>
   <div class="form-group"><label class="form-label" for="provider">Provider</label><select class="form-select" id="provider" name="provider" required><option value="">请选择...</option>${['openai', 'response-api', 'anthropic'].map(p => html`<option value=${p} ?selected=${model.provider === p}>${p}</option>`)}</select></div>

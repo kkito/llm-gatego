@@ -1,4 +1,5 @@
 import { html, type TemplateResult } from 'lit'
+import { submitAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
@@ -10,6 +11,13 @@ export class GwUserFormPage extends GwPage {
   static properties = { data: { state: true }, error: { state: true } }
   data: { user?: UserFormData; models: Array<{ name: string; desc?: string } | string>; error?: string; success?: string } = { models: [] }
   error = ''
+
+  private async submit(e: Event): Promise<void> {
+    e.preventDefault()
+    const isEdit = !!this.data.user?.name
+    const url = isEdit ? `/api/admin/users/edit/${encodeURIComponent(this.data.user!.name!)}` : '/api/admin/users'
+    try { await submitAndNavigate(e.currentTarget as HTMLFormElement, url) } catch (err) { this.error = (err as Error).message }
+  }
 
   protected load(): Promise<void> {
     return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
@@ -25,7 +33,7 @@ export class GwUserFormPage extends GwPage {
     return html`
 ${pageHeader({ eyebrow: 'USER', title, subtitle: isEdit ? `用户：${user.name || ''}` : '创建用户并分配用户组', actions: html`<a class="ui-btn" href="/admin/users">返回用户列表</a>` })}
 ${err ? notice(err, 'error') : ''}${this.data.success ? notice(this.data.success, 'success') : ''}
-${panel('', '', html`<div class="form-card"><form method="post" action=${isEdit ? `/admin/users/edit/${encodeURIComponent(user.name!)}` : '/admin/users/add'}>
+${panel('', '', html`<div class="form-card"><form @submit=${(e: Event) => this.submit(e)}>
   <div class="form-group"><label class="form-label" for="name">用户名</label><input class="form-input" id="name" name="name" value=${user.name || ''} ?readonly=${isEdit}></div>
   <div class="form-group"><label class="form-label" for="description">描述</label><input class="form-input" id="description" name="description" value=${user.description || ''}></div>
   <div class="form-group"><label class="form-label" for="apiKey">API Key</label><input class="form-input" id="apiKey" name="apiKey" value=${(user as any).apikey || user.apiKey || ''} placeholder="留空自动生成"></div>

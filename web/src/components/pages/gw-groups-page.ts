@@ -15,7 +15,7 @@ export class GwGroupsPage extends GwPage {
   success = ''
 
   private async remove(g: GroupView): Promise<void> {
-    if (!confirm(`确定删除分组 "${g.name}" 吗？`)) return
+    if (!g || !confirm(`确定删除分组 "${g.name}" 吗？`)) return
     try {
       await postAndNavigate(`/api/admin/model-groups/delete/${encodeURIComponent(g.name)}`, {}, currentPath())
       await this.load()

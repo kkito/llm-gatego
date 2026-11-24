@@ -1,4 +1,5 @@
 import { html, type TemplateResult } from 'lit'
+import { submitAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
@@ -17,6 +18,14 @@ export class GwPrivacyPage extends GwPage {
   error = ''
   success = ''
 
+  private async submit(e: Event): Promise<void> {
+    e.preventDefault()
+    try {
+      await submitAndNavigate(e.currentTarget as HTMLFormElement, '/api/admin/privacy')
+      this.success = '保存成功'
+    } catch (err) { this.error = (err as Error).message }
+  }
+
   protected load(): Promise<void> {
     return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
@@ -30,7 +39,7 @@ export class GwPrivacyPage extends GwPage {
     return html`
 ${pageHeader({ eyebrow: 'PRIVACY', title: '隐私保护', subtitle: '控制日志中的敏感信息处理' })}
 ${this.error ? notice(this.error, 'error') : ''}${this.success ? notice(this.success, 'success') : ''}
-${panel('', '', html`<div class="form-card"><form id="privacy-form" method="post" action="/admin/privacy">
+${panel('', '', html`<div class="form-card"><form id="privacy-form" @submit=${(e: Event) => this.submit(e)}>
   ${checks.map(([k, label]) => html`<div class="form-group"><label><input type="checkbox" name=${k} ?checked=${!!s[k]}> ${label}</label></div>`)}
   <div class="form-group"><label class="form-label" for="pathPlaceholder">路径占位符</label><input class="form-input" id="pathPlaceholder" name="pathPlaceholder" value=${s.pathPlaceholder || 'USER'}></div>
   <div class="form-group"><label class="form-label">日志记录</label><label><input type="checkbox" name="detailLogEnabled" ?checked=${this.detailLogEnabled} ?disabled=${this.cliDebug}> 记录完整请求/响应日志</label>${this.cliDebug ? html`<p class="form-hint">命令行启动时使用了 --debug，日志记录设置不可修改</p>` : ''}</div>

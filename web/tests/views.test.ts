@@ -110,7 +110,7 @@ describe('Lit form and remaining pages', () => {
     const el = await mount('gw-group-form-page', { data: { group: { name: 'g1', models: ['m1'] }, models: [{ customModel: 'm1' }, { customModel: 'm2' }] } })
     const t = text(el)
     expect(t).toContain('已选模型（按顺序）'); expect(t).toContain('可用模型')
-    expect(query(el)('a[href*="/remove-model"]')?.getAttribute('href')).toContain('/admin/model-groups/edit/g1/remove-model')
+    expect(text(el)).toContain('移除首个模型')
     const hidden = query(el)('input[name="models"]') as HTMLInputElement
     expect(JSON.parse(hidden.value)).toEqual(['m1'])
     const boxes = queryAll(el)('input[name="modelCheckbox"]') as NodeListOf<HTMLInputElement>

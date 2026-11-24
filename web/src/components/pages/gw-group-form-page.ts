@@ -1,4 +1,5 @@
 import { html, type TemplateResult } from 'lit'
+import { postAndNavigate, submitAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
@@ -34,6 +35,21 @@ export class GwGroupFormPage extends GwPage {
     this.requestUpdate()
   }
 
+  private async submit(e: Event): Promise<void> {
+    e.preventDefault()
+    const isEdit = !!this.data.group?.name
+    const url = isEdit ? `/api/admin/model-groups/edit/${encodeURIComponent(this.data.group!.name!)}` : '/api/admin/model-groups'
+    try { await submitAndNavigate(e.currentTarget as HTMLFormElement, url) } catch (err) { this.error = (err as Error).message }
+  }
+  private async removeFirst(): Promise<void> {
+    const name = this.data.group?.name
+    if (!name || !this.selected.length) return
+    try {
+      await postAndNavigate(`/api/admin/model-groups/edit/${encodeURIComponent(name)}/remove-model`, { model: this.selected[0] })
+      await this.load()
+    } catch (err) { this.error = (err as Error).message }
+  }
+
   protected load(): Promise<void> {
     return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
@@ -48,13 +64,13 @@ export class GwGroupFormPage extends GwPage {
     return html`
 ${pageHeader({ eyebrow: 'MODEL GROUP', title, subtitle: '模型组可作为 API model 使用，按顺序选择多个模型实现 fallback', actions: html`<a class="ui-btn" href="/admin/model-groups">返回模型组</a>` })}
 ${err ? notice(err, 'error') : ''}${this.data.success ? notice(this.data.success, 'success') : ''}
-${panel('', '', html`<div class="form-card"><form method="post" action=${isEdit ? `/admin/model-groups/edit/${encodeURIComponent(group.name!)}` : '/admin/model-groups/add'}>
+${panel('', '', html`<div class="form-card"><form @submit=${(e: Event) => this.submit(e)}>
   <input type="hidden" name="originalName" value=${group.name || ''}>
   <div class="form-group"><label class="form-label" for="name">组名</label><input class="form-input" id="name" name="name" value=${group.name || ''} placeholder="例如：my-group" required></div>
   <div class="form-group"><label class="form-label" for="desc">描述</label><input class="form-input" id="desc" name="desc" value=${group.desc || ''} placeholder="可选"></div>
   <div class="form-group"><label class="form-label" for="new-model-filter">筛选模型</label><input class="form-input" id="new-model-filter" placeholder="输入模型名过滤" @input=${(e: Event) => { this.filter = (e.target as HTMLInputElement).value; this.requestUpdate() }}></div>
   <div class="model-selector"><div><h3 class="model-list-title">可用模型</h3><div class="model-list" id="all-models">${filtered.map(m => html`<label class="model-item" data-name=${m.customModel}><input type="checkbox" name="modelCheckbox" value=${m.customModel} ?checked=${this.selected.includes(m.customModel)} @change=${() => this.sync()}> <span class="model-item-name">${m.customModel}</span><span class="model-item-desc">${m.desc || ''}</span></label>`)}</div></div>
-  <div><h3 class="model-list-title">已选模型（按顺序）</h3><div class="model-list" id="selected-models">${this.selected.length ? this.selected.map((n, i) => html`<div class="model-item"><span class="selected-index">${i + 1}</span><span class="model-item-name">${n}</span><button type="button" class="btn btn-small btn-danger" @click=${() => this.removeModel(i)}>移除</button></div>`) : html`<p class="model-list-empty">尚未选择模型</p>`}</div>${isEdit ? html`<div class="model-actions"><a class="btn btn-small" href=${`/admin/model-groups/edit/${encodeURIComponent(group.name!)}/remove-model?model=${encodeURIComponent(this.selected[0] || '')}`}>移除首个模型</a></div>` : ''}</div></div>
+  <div><h3 class="model-list-title">已选模型（按顺序）</h3><div class="model-list" id="selected-models">${this.selected.length ? this.selected.map((n, i) => html`<div class="model-item"><span class="selected-index">${i + 1}</span><span class="model-item-name">${n}</span><button type="button" class="btn btn-small btn-danger" @click=${() => this.removeModel(i)}>移除</button></div>`) : html`<p class="model-list-empty">尚未选择模型</p>`}</div>${isEdit ? html`<div class="model-actions"><button type="button" class="btn btn-small" @click=${() => this.removeFirst()}>移除首个模型</button></div>` : ''}</div></div>
   <input name="models" type="hidden" .value=${JSON.stringify(this.selected)}>
   <div class="form-actions"><button class="btn btn-primary" type="submit">保存模型组</button><a class="btn btn-secondary" href="/admin/model-groups">取消</a></div>
 </form></div>`)}

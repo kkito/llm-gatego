@@ -15,7 +15,7 @@ export class GwUsersPage extends GwPage {
   error = ''
 
   private async remove(u: UserView): Promise<void> {
-    if (!confirm(`确定删除用户 "${u.name}" 吗？`)) return
+    if (!u || !confirm(`确定删除用户 "${u.name}" 吗？`)) return
     try {
       await postAndNavigate(`/api/admin/users/delete/${encodeURIComponent(u.name)}`, {}, currentPath())
       await this.load()
