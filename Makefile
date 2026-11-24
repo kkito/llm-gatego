@@ -17,9 +17,7 @@ NPM_GLOBAL := $(shell npm root -g)
 
 web-deps:
 	@mkdir -p web/node_modules
-	@for p in lit @lit; do \
-	  if [ ! -e web/node_modules/$$p ]; then ln -s $(NPM_GLOBAL)/$$p web/node_modules/$$p; fi; \
-	done
+	@if [ ! -e web/node_modules/lit ]; then ln -s $(NPM_GLOBAL)/lit web/node_modules/lit; fi
 
 web-build: web-deps
 	NODE_PATH=$(NPM_GLOBAL) node scripts/build_web.cjs
