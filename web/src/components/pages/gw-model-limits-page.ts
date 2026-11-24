@@ -14,31 +14,20 @@ async function loadLimits(path: string): Promise<any[]> { const model = pathSegm
 
 export class GwModelLimitsPage extends GwPage {
   static styles = [uiCSS]
-  static properties = { data: { state: true }, error: { state: true }, success: { state: true }, model: { state: true } }
+  static properties = { data: { state: true }, error: { state: true }, success: { state: true }, model: { state: true }, newType: { state: true }, editing: { state: true } }
   model = ''
   data: LimitView[] = []
   error = ''
   success = ''
-  private isCost = false
+  newType: LimitView['type'] = 'rpm'
+  editing: (LimitView & { index: number }) | null = null
 
-  firstUpdated(): void { this.handleTypeChange() }
-
-  private handleTypeChange(): void {
-    const t = (this.shadowRoot!.querySelector('#type') as HTMLSelectElement)?.value || 'rpm'
-    this.isCost = t === 'cost'
-    this.requestUpdate()
+  private handleTypeChange(e: Event): void {
+    this.newType = (e.target as HTMLSelectElement).value as LimitView['type']
   }
 
   private editLimit(i: number): void {
-    const l = this.data[i]
-    const sr = this.shadowRoot!
-    ;(sr.querySelector('#editIndex') as HTMLInputElement).value = String(i)
-    ;(sr.querySelector('#editType') as HTMLSelectElement).value = l.type
-    ;(sr.querySelector('#editPeriod') as HTMLSelectElement).value = l.period
-    ;(sr.querySelector('#editPeriodValue') as HTMLInputElement).value = String(l.periodValue)
-    ;(sr.querySelector('#editMax') as HTMLInputElement).value = String(l.max)
-    ;(sr.querySelector('#editCostMax') as HTMLInputElement).value = String(l.costMax)
-    ;(sr.querySelector('#editGroupName') as HTMLInputElement).value = l.groupName
+    this.editing = { ...this.data[i], index: i }
   }
 
   private async refreshAfterWrite(): Promise<void> {
@@ -72,22 +61,22 @@ ${pageHeader({ eyebrow: 'MODEL LIMITS', title: `限制规则管理 - ${m}`, subt
 ${this.error ? html`<div class="error-banner">${this.error}</div>` : ''}${this.success ? html`<div class="success-banner">${this.success}</div>` : ''}
 ${panel('限制规则', '', html`<div class="limits-card"><h2 class="limits-title">限制规则管理</h2>${this.data.length ? html`<table class="limits-table"><thead><tr><th>类型</th><th>周期</th><th>周期值</th><th>上限</th><th>用户组</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>` : empty('暂无限制规则', '')}
 <h3 class="section-title">新增规则</h3><form @submit=${(e: Event) => this.add(e)}><input type="hidden" name="model" value=${m}><div class="form-grid">
-  <div class="form-group"><label class="form-label" for="type">类型</label><select class="form-select" id="type" name="type" @change=${() => this.handleTypeChange()}><option value="rpm">请求数/分钟</option><option value="tpm">Token/分钟</option><option value="cost">费用</option></select></div>
+  <div class="form-group"><label class="form-label" for="type">类型</label><select class="form-select" id="type" name="type" .value=${this.newType} @change=${(e: Event) => this.handleTypeChange(e)}><option value="rpm">请求数/分钟</option><option value="tpm">Token/分钟</option><option value="cost">费用</option></select></div>
   <div class="form-group"><label class="form-label" for="period">周期</label><select class="form-select" id="period" name="period"><option value="minute">分钟</option><option value="hour">小时</option><option value="day">天</option></select></div>
   <div class="form-group"><label class="form-label" for="periodValue">周期值</label><input class="form-input" id="periodValue" name="periodValue" type="number" value="1"></div>
-  <div class="form-group" id="maxField" style=${this.isCost ? 'display:none' : ''}><label class="form-label" for="max">上限</label><input class="form-input" id="max" name="max" type="number"></div>
-  <div class="form-group" id="costMaxField" style=${this.isCost ? '' : 'display:none'}><label class="form-label" for="costMax">费用上限</label><input class="form-input" id="costMax" name="costMax" type="number" step="0.01"></div>
+  <div class="form-group" id="maxField" style=${this.newType === 'cost' ? 'display:none' : ''}><label class="form-label" for="max">上限</label><input class="form-input" id="max" name="max" type="number"></div>
+  <div class="form-group" id="costMaxField" style=${this.newType === 'cost' ? '' : 'display:none'}><label class="form-label" for="costMax">费用上限</label><input class="form-input" id="costMax" name="costMax" type="number" step="0.01"></div>
   <div class="form-group"><label class="form-label" for="groupName">用户组</label><input class="form-input" id="groupName" name="groupName" value="default"></div>
   <div class="form-group"><label><input type="checkbox" id="enabled" name="enabled" value="true" checked> 启用</label></div>
 </div><div class="form-actions"><button class="btn btn-primary" type="submit">添加规则</button></div></form>
 <h3 class="section-title">修改规则</h3><form id="editForm" @submit=${(e: Event) => this.edit(e)}><div class="form-grid">
-  <div class="form-group"><label class="form-label">索引</label><input class="form-input" id="editIndex" name="index" type="number" readonly></div>
-  <div class="form-group"><label class="form-label">类型</label><select class="form-select" id="editType" name="type"><option value="rpm">rpm</option><option value="tpm">tpm</option><option value="cost">cost</option></select></div>
-  <div class="form-group"><label class="form-label">周期</label><select class="form-select" id="editPeriod" name="period"><option value="minute">minute</option><option value="hour">hour</option><option value="day">day</option></select></div>
-  <div class="form-group"><label class="form-label">周期值</label><input class="form-input" id="editPeriodValue" name="periodValue" type="number"></div>
-  <div class="form-group"><label class="form-label">上限</label><input class="form-input" id="editMax" name="max" type="number"></div>
-  <div class="form-group"><label class="form-label">费用上限</label><input class="form-input" id="editCostMax" name="costMax" type="number" step="0.01"></div>
-  <div class="form-group"><label class="form-label">用户组</label><input class="form-input" id="editGroupName" name="groupName"></div>
+  <div class="form-group"><label class="form-label">索引</label><input class="form-input" id="editIndex" name="index" type="number" readonly .value=${this.editing?.index ?? ''}></div>
+  <div class="form-group"><label class="form-label">类型</label><select class="form-select" id="editType" name="type" .value=${this.editing?.type || ''}><option value="rpm">rpm</option><option value="tpm">tpm</option><option value="cost">cost</option></select></div>
+  <div class="form-group"><label class="form-label">周期</label><select class="form-select" id="editPeriod" name="period" .value=${this.editing?.period || ''}><option value="minute">minute</option><option value="hour">hour</option><option value="day">day</option></select></div>
+  <div class="form-group"><label class="form-label">周期值</label><input class="form-input" id="editPeriodValue" name="periodValue" type="number" .value=${this.editing?.periodValue ?? ''}></div>
+  <div class="form-group"><label class="form-label">上限</label><input class="form-input" id="editMax" name="max" type="number" .value=${this.editing?.max ?? ''}></div>
+  <div class="form-group"><label class="form-label">费用上限</label><input class="form-input" id="editCostMax" name="costMax" type="number" step="0.01" .value=${this.editing?.costMax ?? ''}></div>
+  <div class="form-group"><label class="form-label">用户组</label><input class="form-input" id="editGroupName" name="groupName" .value=${this.editing?.groupName || ''}></div>
 </div><div class="form-actions"><button class="btn btn-primary" type="submit">保存修改</button></div></form></div>`)}
 `
   }

@@ -46,12 +46,14 @@ export class GwStatsPage extends GwPage {
   private tipVisible = false
 
   private setDays(days: number): void {
-    const sr = this.shadowRoot!
     const end = new Date()
     const start = new Date(end.getTime() - days * 86400000)
-    ;(sr.querySelector('#start') as HTMLInputElement).value = start.toISOString().slice(0, 10)
-    ;(sr.querySelector('#end') as HTMLInputElement).value = end.toISOString().slice(0, 10)
-    ;(sr.querySelector('#stats-filter-form') as HTMLFormElement).submit()
+    const params = new URLSearchParams()
+    params.set('startDate', start.toISOString().slice(0, 10))
+    params.set('endDate', end.toISOString().slice(0, 10))
+    if (this.data.userName) params.set('userName', this.data.userName)
+    if (this.data.model) params.set('model', this.data.model)
+    navigate('/admin/stats?' + params.toString())
   }
 
   private showTip(e: Event, text: string): void {
@@ -112,7 +114,7 @@ export class GwStatsPage extends GwPage {
 
     return html`
 ${pageHeader({ eyebrow: 'Analytics', title: '统计 Dashboard', subtitle: `${s.dateRange || ''} · 平均延迟 ${formatDuration(s.avgDuration)}` })}
-<form @submit=${(e: Event) => this.submitFilter(e)} class="ui-row" id="stats-filter-form"><input class="ui-input" style="width:auto" type="date" id="start" name="startDate" value=${s.startDate}><input class="ui-input" style="width:auto" type="date" id="end" name="endDate" value=${s.endDate}><input class="ui-input" style="width:150px" name="userName" placeholder="用户" value=${s.userName || ''}><input class="ui-input" style="width:180px" name="model" placeholder="模型" value=${s.model || ''}><button class="ui-btn ui-btn-primary">查询</button><button type="button" class="ui-btn" data-days="1" @click=${() => this.setDays(1)}>今天</button><button type="button" class="ui-btn" data-days="7" @click=${() => this.setDays(7)}>7天</button><button type="button" class="ui-btn" data-days="30" @click=${() => this.setDays(30)}>30天</button></form>
+<form @submit=${(e: Event) => this.submitFilter(e)} class="ui-row" id="stats-filter-form"><input class="ui-input" style="width:auto" type="date" id="start" name="startDate" .value=${s.startDate}><input class="ui-input" style="width:auto" type="date" id="end" name="endDate" .value=${s.endDate}><input class="ui-input" style="width:150px" name="userName" placeholder="用户" .value=${s.userName || ''}><input class="ui-input" style="width:180px" name="model" placeholder="模型" .value=${s.model || ''}><button class="ui-btn ui-btn-primary">查询</button><button type="button" class="ui-btn" data-days="1" @click=${() => this.setDays(1)}>今天</button><button type="button" class="ui-btn" data-days="7" @click=${() => this.setDays(7)}>7天</button><button type="button" class="ui-btn" data-days="30" @click=${() => this.setDays(30)}>30天</button></form>
 <div style="height:14px"></div><div class="ui-grid ui-grid-auto">${cards.map(([label, value, sub]) => html`<div class="ui-panel" style="margin:0;padding:16px 18px"><div class="ui-field-hint">${label}</div><div class="ui-mono" style="font-size:22px;font-weight:800;margin-top:4px">${value}</div><div class="ui-field-hint">${sub}</div></div>`)}</div><div style="height:16px"></div>
 ${panel('Token 用量', '', html`<div class="ui-grid ui-grid-auto">${tokens.map(([k, v]) => html`<div><div class="ui-field-hint">${k}</div><div class="ui-mono" style="font-size:18px;font-weight:700">${formatNumber(v || 0)}</div></div>`)}</div>`)}
 ${days.length ? html`<div class="stats-section-card"><h2 class="stats-section-title">🗓️ 每日 Token 消耗</h2><div style="font-size:12px;color:var(--ui-muted);margin-bottom:10px">过去 ${days.length} 天 · 共 ${formatNumber(totalHeatTokens)} tokens${rangeText}</div><div class="heatmap-scroll"><div class="heatmap-months">${weeks.map((_, col) => { const lbl = monthLabels.find(l => l.col === col); return html`<span>${lbl ? lbl.label : ''}</span>` })}</div><div class="heatmap-grid" data-heatmap-grid>${weeks.map(week => html`<div class="heatmap-col">${week.map(c => c.date ? html`<span class="heatmap-cell" data-tip=${`${c.date} · ${c.requests || 0} 次请求 · ${formatNumber(c.totalTokens || 0)} tokens`} style=${`background:${colors[levelOf(c.totalTokens || 0)]}`} @mouseenter=${(e: Event) => this.showTip(e, `${c.date} · ${c.requests || 0} 次请求 · ${formatNumber(c.totalTokens || 0)} tokens`)} @mousemove=${(e: Event) => this.showTip(e, `${c.date} · ${c.requests || 0} 次请求 · ${formatNumber(c.totalTokens || 0)} tokens`)} @mouseleave=${() => this.hideTip()}></span>` : html`<span class="heatmap-cell" style="visibility:hidden"></span>`)}</div>`)}</div><div class="heatmap-legend"><span>Less</span>${colors.map(c => html`<span class="heatmap-cell" style=${`background:${c}`}></span>`)}<span>More</span><span style="margin-left:8px">深浅按当日 token 量相对最大值划分</span></div></div></div>` : ''}

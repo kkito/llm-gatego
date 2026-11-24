@@ -1,4 +1,4 @@
-import { api } from '../../api.js'
+import { api, formToObject } from '../../api.js'
 import { html, type TemplateResult } from 'lit'
 import { GwPage } from '../gw-page.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
@@ -14,13 +14,10 @@ export class GwPasswordPage extends GwPage {
 
   private async submit(e: Event): Promise<void> {
     e.preventDefault()
-    const f = e.target as HTMLFormElement
-    const action = (document.activeElement as HTMLButtonElement)?.value || 'change'
+    const f = e.currentTarget as HTMLFormElement
     const body = {
-      action,
-      currentPassword: (f.querySelector('[name=currentPassword]') as HTMLInputElement)?.value || '',
-      newPassword: (f.querySelector('[name=newPassword]') as HTMLInputElement).value,
-      confirmPassword: (f.querySelector('[name=confirmPassword]') as HTMLInputElement).value,
+      action: (document.activeElement as HTMLButtonElement)?.value || 'change',
+      ...formToObject(f),
     }
     const r = await fetch('/api/admin/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     const j = await r.json()

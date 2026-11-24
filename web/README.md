@@ -5,10 +5,9 @@
 ## 功能点
 
 - 使用 Go 标准库 `net/http` 实现内置 Web 服务器
-- 使用 `go:embed` 将前端构建产物嵌入 Go 二进制
+- 使用 esbuild 打包并压缩 JS/CSS/HTML，并使用 `go:embed` 将前端构建产物嵌入 Go 二进制
 - 使用 TypeScript + Lit 实现 Web Components 组件化
 - 使用手写轻量 router 实现 SPA
 - 支持 `history.pushState` / `popstate`, 服务端提供 SPA fallback：除 `/api/...`、静态资源外，其他页面路径返回 `index.html`
-- 使用 esbuild 打包并压缩 JS/CSS/HTML
 - 使用 `tsc --noEmit` 做 TypeScript 类型检查
 - 使用 Vitest + happy-dom 做 DOM/路由/构建产物测试
