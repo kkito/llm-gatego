@@ -8,10 +8,10 @@ build: web-build
 	mkdir -p dist
 	go build $(LDFLAGS) -o dist/llm-gatego ./cmd/llm-gatego
 
-test:
+test: web-build
 	go test ./...
 
-test-race:
+test-race: web-build
 	go test -race ./...
 
 NPM_GLOBAL := $(shell npm root -g)
