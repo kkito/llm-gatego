@@ -1,6 +1,6 @@
 # Web Lit Migration Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace the `document.write`-based HTML string rendering in `web/` with Lit 3 components, preserving all page behavior, URLs, form actions, and visual appearance (CSS variables remain global per Lit's standard pattern).
 
@@ -34,7 +34,7 @@
 - Consumes: existing global versions verified at plan-authoring time: `lit@3.3.3`, `esbuild@0.28.2`, `happy-dom@21.0.4`, `typescript@7.0.2`, `vitest@5.0.5`
 - Produces: `web/src/styles/tokens.ts` exporting `globalCSSString: string` (no imports, readable by build script); `web/src/styles/tokens-lit.ts` exporting `globalCSS: CSSResult`; `web/package.json` pinning the exact versions above
 
-- [ ] **Step 1: Create `web/package.json`**
+- [x] **Step 1: Create `web/package.json`**
 
 ```json
 {
@@ -53,7 +53,7 @@
 }
 ```
 
-- [ ] **Step 2: Create `web/src/styles/tokens.ts`** (plain string, no imports; build script reads this file and extracts the template literal body)
+- [x] **Step 2: Create `web/src/styles/tokens.ts`** (plain string, no imports; build script reads this file and extracts the template literal body)
 
 ```ts
 // Global custom properties: keep on :root so they inherit into every
@@ -67,7 +67,7 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
 `
 ```
 
-- [ ] **Step 3: Create `web/src/styles/tokens-lit.ts`**
+- [x] **Step 3: Create `web/src/styles/tokens-lit.ts`**
 
 ```ts
 import { unsafeCSS } from 'lit'
@@ -76,12 +76,12 @@ export const globalCSS = unsafeCSS(globalCSSString)
 ```
 (`unsafeCSS` returns a `CSSResult` suitable for `static styles` arrays; the CSS string is authored by us, not user input.)
 
-- [ ] **Step 4: Verify tests still green before code changes**
+- [x] **Step 4: Verify tests still green before code changes**
 
 Run: `make web-test`
 Expected: 5 files / 36 tests pass (no behavior change yet)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/package.json web/src/styles/tokens.ts web/src/styles/tokens-lit.ts scripts/build_web.cjs
@@ -101,7 +101,7 @@ git commit -m "chore(web): pin lit deps and add global CSS tokens"
 - Consumes: `globalCSS` from `web/src/styles/tokens-lit.ts`, `adminNav`/`userNav` moved here from `ui/shell.ts`; Lit auto-escapes template values, so remove `escapeHtml()` calls in templates
 - Produces: `GwShell` custom element `<gw-shell>` with properties: `title: string`, `path: string`, `version: string`, `nav?: NavItem[]`, `width?: number`; it renders `<slot>` for page content; helper functions `pageHeader(opts)`, `panel(opts)`, `notice(message, kind)`, `empty(title, hint, action?)`, `table(headers, rows)` returning `TemplateResult`; exported `adminNav`, `userNav` arrays matching `ui/shell.ts`
 
-- [ ] **Step 1: Write failing test `web/tests/shell.test.ts`**
+- [x] **Step 1: Write failing test `web/tests/shell.test.ts`**
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -123,12 +123,12 @@ describe('gw-shell', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run tests/shell.test.ts`
 Expected: FAIL — module `../src/components/gw-shell.js` not found
 
-- [ ] **Step 3: Implement `web/src/components/gw-shell.ts`** (full source)
+- [x] **Step 3: Implement `web/src/components/gw-shell.ts`** (full source)
 
 ```ts
 import { LitElement, css, html, type TemplateResult } from 'lit'
@@ -196,14 +196,14 @@ export class GwShell extends LitElement {
 if (!customElements.get('gw-shell')) customElements.define('gw-shell', GwShell)
 ```
 
-- [ ] **Step 4: Create `web/src/components/ui.ts`** with the same class names and structure as current `ui/shell.ts` helpers, but returning `TemplateResult`: `pageHeader`, `panel`, `notice`, `empty`, `table`, `formField`. Copy exact markup/class names from `web/src/ui/shell.ts` lines after `uiCSS` declaration; use Lit `html` template interpolation instead of string concatenation. Include CSS for those classes in a `uiCSS` `css` tagged template exported from this file (copy from `web/src/ui/shell.ts` `uiCSS` + `formCSS` strings).
+- [x] **Step 4: Create `web/src/components/ui.ts`** with the same class names and structure as current `ui/shell.ts` helpers, but returning `TemplateResult`: `pageHeader`, `panel`, `notice`, `empty`, `table`, `formField`. Copy exact markup/class names from `web/src/ui/shell.ts` lines after `uiCSS` declaration; use Lit `html` template interpolation instead of string concatenation. Include CSS for those classes in a `uiCSS` `css` tagged template exported from this file (copy from `web/src/ui/shell.ts` `uiCSS` + `formCSS` strings).
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run tests/shell.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components web/tests/shell.test.ts
@@ -224,7 +224,7 @@ git commit -m "feat(web): add Lit shell and shared UI helpers"
 - Consumes: `startWhenReady` (kept in `admin.ts`), all page components from Tasks 4–7. To avoid import cycles, define route table in `gw-app.ts` importing page components.
 - Produces: `<gw-app>` custom element registered on import of `admin.ts`; `routeForPath(path: string): string` exported for unit test; data loaders `loadPageData(path)` returning `Promise<unknown>` per route using `api.ts`
 
-- [ ] **Step 1: Write failing routing test `web/tests/appRouting.test.ts`**
+- [x] **Step 1: Write failing routing test `web/tests/appRouting.test.ts`**
 
 ```ts
 import { describe, it, expect } from 'vitest'
@@ -240,12 +240,12 @@ describe('routeForPath', () => {
 })
 ```
 
-- [ ] **Step 2: Run to verify fails**
+- [x] **Step 2: Run to verify fails**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run tests/appRouting.test.ts`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Implement `gw-app.ts` route table and data loading**
+- [x] **Step 3: Implement `gw-app.ts` route table and data loading**
 
 Route table (mirror `admin.ts` renderers exactly):
 
@@ -272,7 +272,7 @@ export function routeForPath(path: string): string {
 
 `GwApp extends LitElement`: in `connectedCallback`, if `location.pathname === '/'` call `location.replace('/admin/models')`; then `loadData()` fetches the exact same endpoints as current `admin.ts` renderers, stores result in reactive properties `data: any`, `error: string`, and renders `<gw-shell ...>${dynamic page element with `.data=${this.data}` and `.error=${this.error}`}</gw-shell>`. Use `unsafeStatic`? No — use `literal` `html` switch per route (explicit `if/else` returning the right tag) so Lit's compiler tracks bindings.
 
-- [ ] **Step 4: Modify `admin.ts`** to:
+- [x] **Step 4: Modify `admin.ts`** to:
 
 ```ts
 import './components/gw-app.js'
@@ -283,20 +283,20 @@ if (typeof document !== 'undefined') startWhenReady(document, () => {
 ```
 (keep `renderAdmin` in `admin.ts` during transition so `indexBootstrap.test.ts` can still run; delete in Task 7 cleanup. The `startWhenReady` re-export must come from `admin.ts`'s own definition, not `gw-app.ts`; use `export { startWhenReady }` at the bottom of the file where it is defined.)
 
-- [ ] **Step 5: Modify `web/index.html`** to contain global style placeholder and `<gw-app>`:
+- [x] **Step 5: Modify `web/index.html`** to contain global style placeholder and `<gw-app>`:
 
 ```html
 <!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>LLM Gateway</title><!-- GLOBAL_CSS --></head><body><gw-app></gw-app><script defer src="/assets/admin.js"></script></body></html>
 ```
 
-- [ ] **Step 6: Update `scripts/build_web.cjs`** to replace `<!-- GLOBAL_CSS -->` with `<style>...</style>`: read `web/src/styles/tokens.ts`, regex-match `globalCSSString = \`([\s\S]*?)\``, capture group 1 is the raw CSS string. Insert it into the HTML and write `web/dist/index.html`. No second build step needed because `tokens.ts` has no imports.
+- [x] **Step 6: Update `scripts/build_web.cjs`** to replace `<!-- GLOBAL_CSS -->` with `<style>...</style>`: read `web/src/styles/tokens.ts`, regex-match `globalCSSString = \`([\s\S]*?)\``, capture group 1 is the raw CSS string. Insert it into the HTML and write `web/dist/index.html`. No second build step needed because `tokens.ts` has no imports.
 
-- [ ] **Step 7: Run all tests**
+- [x] **Step 7: Run all tests**
 
 Run: `make web-test`
 Expected: appRouting test passes; existing tests still green (renderAdmin still present)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add web/src/components/gw-app.ts web/src/admin.ts web/index.html scripts/build_web.cjs web/tests/appRouting.test.ts web/tests/indexBootstrap.test.ts
@@ -316,7 +316,7 @@ git commit -m "feat(web): add gw-app route root with Lit data loading"
 - Consumes: `pageHeader`, `panel`, `notice`, `empty`, `table` from `components/ui.ts`; `<gw-shell>` wraps each page's root; `.data` and `.error` properties set by `<gw-app>`
 - Produces: custom elements with names in `routeForPath` map; each exposes `data: any`, `error = ''`
 
-- [ ] **Step 1: Write failing DOM test (example for models page) in `web/tests/views.test.ts`**
+- [x] **Step 1: Write failing DOM test (example for models page) in `web/tests/views.test.ts`**
 
 ```ts
 import '../src/components/pages/gw-models-page.js'
@@ -338,12 +338,12 @@ describe('gw-models-page', () => {
 ```
 Repeat equivalent assertions from current `views.test.ts` for groups/users/apiKeys/privacy/password/announcement pages (keep identical Chinese strings and structural checks).
 
-- [ ] **Step 2: Run to verify fails**
+- [x] **Step 2: Run to verify fails**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run tests/views.test.ts`
 Expected: FAIL — component modules not found
 
-- [ ] **Step 3: Implement each page component** following this template (models example, full source):
+- [x] **Step 3: Implement each page component** following this template (models example, full source):
 
 ```ts
 import { LitElement, css, html, type TemplateResult } from 'lit'
@@ -383,12 +383,12 @@ if (!customElements.get('gw-models-page')) customElements.define('gw-models-page
 
 Other pages: translate their existing `views/*.ts` markup 1:1 into `html` templates, preserving every Chinese string, class name, form action, and URL. For pages with no inline scripts (groups/users/api-keys/privacy/password/announcement) the component is pure template + optional `@click` for confirm-based delete (apiKeys). Wrap all in `<gw-shell>` with the same `title`, `path`, `version`.
 
-- [ ] **Step 4: Run tests, fix failures, then delete old view files**
+- [x] **Step 4: Run tests, fix failures, then delete old view files**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run tests/views.test.ts`
 Expected: PASS. Then `git rm web/src/views/models.ts web/src/views/groups.ts web/src/views/users.ts web/src/views/apiKeys.ts web/src/views/announcement.ts web/src/views/privacy.ts web/src/views/password.ts` (only those covered by rewritten tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/src/components/pages web/tests/views.test.ts
@@ -409,7 +409,7 @@ git commit -m "feat(web): migrate read-only pages to Lit components"
 - Consumes: `pageHeader`, `panel`, `notice`, `uiCSS` from `components/ui.ts`; `<gw-json-editor name="defaultParams" value="...">` with properties `name: string`, `value: string`
 - Produces: page components with `data`, `error`, `success` properties; group form has reactive `selected: string[]`, `filter: string` and hidden `<input name="models">` synced from `selected` via `@change`
 
-- [ ] **Step 1: Write failing tests for group form interaction and JSON editor in `web/tests/viewScripts.test.ts`**
+- [x] **Step 1: Write failing tests for group form interaction and JSON editor in `web/tests/viewScripts.test.ts`**
 
 ```ts
 import '../src/components/gw-group-form-page.js'
@@ -445,25 +445,25 @@ describe('gw-json-editor', () => {
 ```
 Also rewrite the 6 existing `modelFormPage` assertions from `views.test.ts` to mount `gw-model-form-page` and check `shadowRoot.textContent` (keep the same strings: `测试模型配置`, `发送测试请求`, etc.).
 
-- [ ] **Step 2: Run to verify fails**
+- [x] **Step 2: Run to verify fails**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run tests/viewScripts.test.ts tests/views.test.ts`
 Expected: FAIL — modules not found
 
-- [ ] **Step 3: Implement `gw-json-editor.ts`** with shadow DOM: `<textarea>` (`.value` property, `@input` handler calling `validate()`), preview `<pre>` (green/red background via `.valid`/`.invalid` classes), hidden `<input>` with `name`, buttons `格式化` and `清空` with `@click`. `validate()` does `JSON.parse`, sets preview text to `JSON.stringify(parsed,null,2)` or `JSON 格式错误：...`, sets hidden input value, toggles classes. This replaces the three global functions `jsonEditorValidate/Format/Clear` with component methods.
+- [x] **Step 3: Implement `gw-json-editor.ts`** with shadow DOM: `<textarea>` (`.value` property, `@input` handler calling `validate()`), preview `<pre>` (green/red background via `.valid`/`.invalid` classes), hidden `<input>` with `name`, buttons `格式化` and `清空` with `@click`. `validate()` does `JSON.parse`, sets preview text to `JSON.stringify(parsed,null,2)` or `JSON 格式错误：...`, sets hidden input value, toggles classes. This replaces the three global functions `jsonEditorValidate/Format/Clear` with component methods.
 
-- [ ] **Step 4: Implement form page components** translating existing templates 1:1. Key behavior to preserve:
+- [x] **Step 4: Implement form page components** translating existing templates 1:1. Key behavior to preserve:
   - `gw-model-form-page`: `<form method="POST" action=...>` with all fields (`customModel`, `realModel`, `provider`, `baseUrl`, `proxy`, `apiKeySource`+`apiKeyManual`, `desc`, `maxContextLength`, `<gw-json-editor name="defaultParams">`); `@change` on apiKeySource toggles manual input disabled/value; edit mode shows `<details>` test panel — copy the `runTest` fetch logic verbatim into an async method `runTest()` called by `@click` on `testBtn` (this satisfies "complex scripts moved into component lifecycle verbatim")
   - `gw-group-form-page`: `selected` state initialized from `data.group.models`; checkbox `@change` calls `sync()` method that updates `selected` and hidden input; `removeModel(i)` method; `filter` state + `@input` filters `.model-item` via CSS `hidden` binding; preserve `remove-model` link
   - `gw-user-form-page`: model permission checkboxes, `hint` text `不选择任何模型表示不限制`
   - `gw-model-limits-page`: `limits` data; `handleTypeChange()` toggles `maxField`/`costMaxField` visibility via`; `editLimit(i)` fills edit form action/values — methods on component; keep `window.limits` data equivalent as component property
 
-- [ ] **Step 5: Run tests and delete old views**
+- [x] **Step 5: Run tests and delete old views**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run`
 Expected: all pass. Then delete migrated view files and their obsolete string-based tests in `views.test.ts` / `viewScripts.test.ts` (keep URL/form assertions as DOM assertions).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add web/src/components web/tests
@@ -484,29 +484,29 @@ git commit -m "feat(web): migrate form pages and JSON editor to Lit"
 - Consumes: `pageHeader`, `panel`, `table`, `notice`, `<gw-shell>`; `formatNumber`, `formatDuration`, `escapeHtml` from `format.ts` (Lit templates auto-escape; keep explicit calls only where injecting HTML into `title` attributes etc.)
 - Produces: remaining page components named in `routeForPath`
 
-- [ ] **Step 1: Write failing DOM tests** in `web/tests/views.test.ts` covering every assertion currently in that file for these pages:
+- [x] **Step 1: Write failing DOM tests** in `web/tests/views.test.ts` covering every assertion currently in that file for these pages:
   - stats: `统计 Dashboard`, `heatmap-grid`, `Token 用量`, 最近请求/pagination, daily heatmap (`每日 Token 消耗`, `过去 1 天`, `heatmap-months`, `heatmap-cell`)
   - user home: `🚀 LLM Gateway`, `JSON 配置`, copy button behavior (click → `navigator.clipboard.writeText` stub + text changes to `已复制`)
   - user stats: `使用统计 — u1`
   - login: `管理员登录` / `设置管理员密码` / `用户登录`
 
-- [ ] **Step 2: Run to verify fails**
+- [x] **Step 2: Run to verify fails**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run tests/views.test.ts`
 Expected: FAIL — modules not found
 
-- [ ] **Step 3: Implement `gw-stats-page.ts`** translating template 1:1; copy heatmap computation logic verbatim into a helper `buildHeatmap(s)` returning `{ weeks, colors, monthLabels, totalHeatTokens }`. Tooltip script becomes `@mouseenter`/`@mousemove`/`@mouseleave` handlers setting `this.tipText`, `this.tipX`, `this.tipY` reactive properties rendered as a fixed-position `<div class="heatmap-tip">`; date-range buttons `@click` set `#start`/`#end` values and call `form.submit()`. This is the "verbatim logic, Lit events" path from spec §内联脚本.
+- [x] **Step 3: Implement `gw-stats-page.ts`** translating template 1:1; copy heatmap computation logic verbatim into a helper `buildHeatmap(s)` returning `{ weeks, colors, monthLabels, totalHeatTokens }`. Tooltip script becomes `@mouseenter`/`@mousemove`/`@mouseleave` handlers setting `this.tipText`, `this.tipX`, `this.tipY` reactive properties rendered as a fixed-position `<div class="heatmap-tip">`; date-range buttons `@click` set `#start`/`#end` values and call `form.submit()`. This is the "verbatim logic, Lit events" path from spec §内联脚本.
 
-- [ ] **Step 4: Implement `gw-user-home-page.ts`** with config JSON, copy buttons using `@click` + `navigator.clipboard.writeText`, `已复制`反馈. Use `<gw-shell path="/user/main" nav={userNav} width={980}>`.
+- [x] **Step 4: Implement `gw-user-home-page.ts`** with config JSON, copy buttons using `@click` + `navigator.clipboard.writeText`, `已复制`反馈. Use `<gw-shell path="/user/main" nav={userNav} width={980}>`.
 
-- [ ] **Step 5: Implement `gw-user-stats-page.ts`** and `gw-login-page.ts` (login page does NOT use `<gw-shell>` — it uses the centered login-layout markup from current `views/login.ts`, moved into component `static styles`).
+- [x] **Step 5: Implement `gw-user-stats-page.ts`** and `gw-login-page.ts` (login page does NOT use `<gw-shell>` — it uses the centered login-layout markup from current `views/login.ts`, moved into component `static styles`).
 
-- [ ] **Step 6: Run all tests; delete old view/style/shell files**
+- [x] **Step 6: Run all tests; delete old view/style/shell files**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run`
 Expected: all pass. Then `git rm -r web/src/views/ web/src/ui/ web/src/styles/*.ts` (keep `styles/tokens.ts` and `styles/tokens-lit.ts`).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/src/components web/tests
@@ -527,7 +527,7 @@ git commit -m "feat(web): migrate stats, user pages and login to Lit"
 - Consumes: all components from Tasks 2–6
 - Produces: final built `web/dist/assets/admin.js` and copied `internal/server/dist/assets/admin.js` with no legacy rendering code
 
-- [ ] **Step 1: Extend `web/tests/indexBootstrap.test.ts` to cover all routes**
+- [x] **Step 1: Extend `web/tests/indexBootstrap.test.ts` to cover all routes**
 
 ```ts
 const routes = [
@@ -555,23 +555,23 @@ for (const [path, text] of routes) {
 ```
 Implement a `fakeFetch(path)` helper that switches on URL and returns the same shapes the old `renderers` expected. Reuse the existing 3-step sequence (loading → eval bundle → DOMContentLoaded → flush → assert).
 
-- [ ] **Step 2: Run to verify all routes pass**
+- [x] **Step 2: Run to verify all routes pass**
 
 Run: `make web-test`
 Expected: all tests pass including 12 route smoke tests
 
-- [ ] **Step 3: Delete `renderAdmin` from `admin.ts`** and any unused imports; final `admin.ts` should be ~20 lines: import `./components/gw-app.js`, re-export `startWhenReady`, call it with a function that defines `<gw-app>` if needed.
+- [x] **Step 3: Delete `renderAdmin` from `admin.ts`** and any unused imports; final `admin.ts` should be ~20 lines: import `./components/gw-app.js`, re-export `startWhenReady`, call it with a function that defines `<gw-app>` if needed.
 
-- [ ] **Step 4: Run full verification**
+- [x] **Step 4: Run full verification**
 
 Run: `make web-build && go test ./... && go build ./...`
 Expected: all pass; `go test ./...` includes e2e form-flow tests that exercise POST endpoints
 
-- [ ] **Step 5: Browser smoke test**
+- [x] **Step 5: Browser smoke test**
 
 Start server (`dist/llm-gatego start`), open `http://localhost:4000/admin/models`, `/admin/models/new`, `/admin/stats`, `/user/main`. Confirm each page shows content (not blank) and console has no errors. Use browser automation if available.
 
-- [ ] **Step 6: Commit and push**
+- [x] **Step 6: Commit and push**
 
 ```bash
 git add -A
