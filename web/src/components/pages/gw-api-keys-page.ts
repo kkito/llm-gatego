@@ -1,4 +1,6 @@
 import { html, type TemplateResult } from 'lit'
+import { postAndNavigate, submitAndNavigate } from '../../api.js'
+import { currentPath } from '../../router.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, table, formField, uiCSS } from '../ui.js'
@@ -14,6 +16,25 @@ export class GwApiKeysPage extends GwPage {
   success = ''
   editing?: EditingKeyView
 
+  private async remove(k: KeyView): Promise<void> {
+    if (!k || !confirm(`确定删除 ${k.name}?`)) return
+    try {
+      await postAndNavigate(`/api/admin/api-keys/delete/${encodeURIComponent(k.id)}`, {}, currentPath())
+      await this.load()
+    } catch (e) { this.error = (e as Error).message }
+  }
+  private async submit(e: Event): Promise<void> {
+    e.preventDefault()
+    const form = e.currentTarget as HTMLFormElement
+    const url = this.editing ? `/api/admin/api-keys/edit/${encodeURIComponent(this.editing.id)}` : '/api/admin/api-keys'
+    try {
+      await submitAndNavigate(form, url, currentPath())
+      this.editing = undefined
+      this.success = '保存成功'
+      await this.load()
+    } catch (err) { this.error = (err as Error).message }
+  }
+
   protected load(): Promise<void> {
     return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
@@ -24,10 +45,10 @@ export class GwApiKeysPage extends GwPage {
       <td class="ui-mono">${k.keyHint || (k.key ? '*****' + k.key.slice(-4) : '*****')}</td>
       <td><div class="ui-row">
         <a class="ui-btn ui-btn-sm" href=${`/admin/api-keys/edit/${encodeURIComponent(k.id)}`}>编辑</a>
-        <form method="post" action=${`/admin/api-keys/delete/${encodeURIComponent(k.id)}`} @submit=${(e: Event) => { if (!confirm(`确定删除 ${k.name}?`)) e.preventDefault() }}><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form>
+        <button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.remove(k)}>删除</button>
       </div></td>
     </tr>`)
-    const form = html`<form method="post" action=${this.editing ? '/admin/api-keys/edit/' + encodeURIComponent(this.editing.id) : '/admin/api-keys'}>
+    const form = html`<form @submit=${(e: Event) => this.submit(e)}>
       ${formField('名称', html`<input class="ui-input" name="name" value=${this.editing ? this.editing.name : ''} placeholder="例如：主网关 Key" required>`)}
       ${formField('API Key', html`<input class="ui-input" name="key" placeholder=${this.editing ? '留空表示保持当前值' : 'sk-...'} ?required=${!this.editing}>`, this.editing ? `当前值：${this.editing.keyHint}` : '')}
       <div class="ui-row"><button class="ui-btn ui-btn-primary">${this.editing ? '保存修改' : '添加密钥'}</button><a class="ui-btn" href="/admin/api-keys">取消</a></div>

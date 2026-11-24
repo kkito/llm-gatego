@@ -1,12 +1,9 @@
 import { html, css, type TemplateResult } from 'lit'
+import { postAndNavigate } from '../../api.js'
+import { currentPath } from '../../router.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, table, uiCSS } from '../ui.js'
-
-function postForm(url: string): void {
-  const f = document.createElement('form'); f.method = 'POST'; f.action = url
-  document.body.appendChild(f); f.submit()
-}
 
 export interface ModelView { customModel: string; realModel: string; desc?: string; hidden?: boolean }
 
@@ -15,19 +12,25 @@ export class GwModelsPage extends GwPage {
   static properties = { data: { state: true }, error: { state: true } }
   data: ModelView[] = []
   error = ''
-  private post = postForm
 
+  private async run(url: string): Promise<void> {
+    try {
+      await postAndNavigate(url, {}, currentPath())
+      this.error = ''
+      await this.load()
+    } catch (e) { this.error = (e as Error).message }
+  }
   private move(model: ModelView, dir: 'up' | 'down'): void {
-    this.post(`/admin/models/move/${encodeURIComponent(model.customModel)}?direction=${dir}`)
+    void this.run(`/api/admin/models/move/${encodeURIComponent(model.customModel)}?direction=${dir}`)
   }
   private toggle(model: ModelView): void {
-    this.post(`/admin/models/toggle-hidden/${encodeURIComponent(model.customModel)}`)
+    void this.run(`/api/admin/models/toggle-hidden/${encodeURIComponent(model.customModel)}`)
   }
   private copy(model: ModelView): void {
-    if (confirm(`确定要复制模型 "${model.customModel}" 吗？`)) this.post(`/admin/models/copy/${encodeURIComponent(model.customModel)}`)
+    if (confirm(`确定要复制模型 "${model.customModel}" 吗？`)) void this.run(`/api/admin/models/copy/${encodeURIComponent(model.customModel)}`)
   }
   private deleteModel(model: ModelView): void {
-    if (confirm(`确定要删除模型 "${model.customModel}" 吗？`)) this.post(`/admin/models/delete/${encodeURIComponent(model.customModel)}`)
+    if (confirm(`确定要删除模型 "${model.customModel}" 吗？`)) void this.run(`/api/admin/models/delete/${encodeURIComponent(model.customModel)}`)
   }
 
   protected load(): Promise<void> {

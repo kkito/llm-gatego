@@ -153,6 +153,14 @@ describe('Lit form and remaining pages', () => {
     expect(text(el)).toContain('使用统计 — u1')
     el.remove()
   })
+  it('list pages no longer use native POST forms', async () => {
+    for (const tag of ['gw-models-page', 'gw-groups-page', 'gw-users-page', 'gw-api-keys-page']) {
+      const el = await mount(tag, { data: [] })
+      const forms = Array.from(query(el)('form') ? [query(el)('form')] : []) as HTMLFormElement[]
+      expect(forms.some(f => (f.getAttribute('method') || '').toLowerCase() === 'post'), `${tag} still has a native POST form`).toBe(false)
+      el.remove()
+    }
+  })
   it('login pages render correct headings', async () => {
     const a = await mount('gw-login-page', { mode: 'admin-login' }); expect(a.shadowRoot.textContent).toContain('管理员登录'); a.remove()
     const s = await mount('gw-login-page', { mode: 'admin-setup' }); expect(s.shadowRoot.textContent).toContain('设置管理员密码'); s.remove()

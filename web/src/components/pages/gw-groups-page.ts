@@ -1,4 +1,6 @@
 import { html, type TemplateResult } from 'lit'
+import { currentPath } from '../../router.js'
+import { postAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, uiCSS } from '../ui.js'
@@ -12,6 +14,14 @@ export class GwGroupsPage extends GwPage {
   error = ''
   success = ''
 
+  private async remove(g: GroupView): Promise<void> {
+    if (!confirm(`确定删除分组 "${g.name}" 吗？`)) return
+    try {
+      await postAndNavigate(`/api/admin/model-groups/delete/${encodeURIComponent(g.name)}`, {}, currentPath())
+      await this.load()
+    } catch (e) { this.error = (e as Error).message }
+  }
+
   protected load(): Promise<void> {
     return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
@@ -20,7 +30,7 @@ export class GwGroupsPage extends GwPage {
     const cards = this.data.map(g => html`<article class="ui-panel" style="margin:0">
       <div class="ui-panel-head"><div><h3 class="ui-panel-title">${g.name}</h3><p class="ui-panel-sub">${g.models.length} 个模型</p></div><a class="ui-btn ui-btn-sm" href=${`/admin/model-groups/edit/${encodeURIComponent(g.name)}`}>管理模型</a></div>
       <div class="ui-panel-body"><p class="ui-field-hint">${g.desc || '—'}</p><div class="ui-row" style="margin:10px 0 14px">${g.models.slice(0, 5).map(m => html`<a class="ui-badge" href=${`/admin/models/edit/${encodeURIComponent(m)}`}>${m}</a>`)}${g.models.length > 5 ? html`<span class="ui-field-hint">+${g.models.length - 5}</span>` : ''}</div>
-      <form method="post" action=${`/admin/model-groups/delete/${encodeURIComponent(g.name)}`}><button class="ui-btn ui-btn-sm ui-btn-danger">删除分组</button></form></div></article>`)
+      <button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.remove(g)}>删除分组</button></div></article>`)
     return html`
 ${pageHeader({ eyebrow: 'Routing', title: '模型分组', subtitle: '管理模型分组配置', actions: html`<a class="ui-btn" href="/admin/models">返回模型</a><a class="ui-btn ui-btn-primary" href="/admin/model-groups/new">+ 新建分组</a>` })}
 ${this.error ? notice(this.error, 'error') : ''}${this.success ? notice(this.success, 'success') : ''}

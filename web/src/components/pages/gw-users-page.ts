@@ -1,4 +1,6 @@
 import { html, type TemplateResult } from 'lit'
+import { postAndNavigate } from '../../api.js'
+import { currentPath } from '../../router.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, uiCSS } from '../ui.js'
@@ -12,6 +14,22 @@ export class GwUsersPage extends GwPage {
   enabled = true
   error = ''
 
+  private async remove(u: UserView): Promise<void> {
+    if (!confirm(`确定删除用户 "${u.name}" 吗？`)) return
+    try {
+      await postAndNavigate(`/api/admin/users/delete/${encodeURIComponent(u.name)}`, {}, currentPath())
+      await this.load()
+    } catch (e) { this.error = (e as Error).message }
+  }
+  private async toggle(): Promise<void> {
+    try {
+      const next = !this.enabled
+      await postAndNavigate('/api/admin/users/toggle', { enabled: next }, currentPath())
+      this.enabled = next
+      await this.load()
+    } catch (e) { this.error = (e as Error).message }
+  }
+
   protected load(): Promise<void> {
     return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
@@ -22,9 +40,9 @@ export class GwUsersPage extends GwPage {
       <div class="ui-panel-body">
         <div class="ui-field-hint ui-mono" style="margin-bottom:10px">${u.apikey.slice(0, 8)}…</div>
         <div class="ui-row">${!u.allowedModels || u.allowedModels.length === 0 ? html`<span class="ui-badge">所有模型</span>` : html`${u.allowedModels.slice(0, 3).map(m => html`<span class="ui-badge">${m}</span>`)}${(u.allowedModels?.length || 0) > 3 ? html`<span class="ui-field-hint">等${u.allowedModels!.length - 3}个模型</span>` : ''}`}</div>
-        <div class="ui-row" style="margin-top:14px"><form method="post" action=${`/api/admin/users/delete/${encodeURIComponent(u.name)}`}><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form></div>
+        <div class="ui-row" style="margin-top:14px"><button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.remove(u)}>删除</button></div>
       </div></article>`)
-    const toggle = html`<form method="post" action="/admin/users/toggle"><input type="hidden" name="enabled" value=${this.enabled ? 'false' : 'true'}><button class="ui-btn">${this.enabled ? '禁用用户认证' : '启用用户认证'}</button></form>`
+    const toggle = html`<button class="ui-btn" @click=${() => this.toggle()}>${this.enabled ? '禁用用户认证' : '启用用户认证'}</button>`
     return html`
 ${pageHeader({ eyebrow: 'Access', title: '用户管理', subtitle: '管理访问 API 的用户和密钥', actions: html`<a class="ui-btn ui-btn-primary" href="/admin/users/new">+ 新增用户</a>${toggle}` })}
 ${this.error ? notice(this.error, 'error') : ''}
