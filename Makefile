@@ -1,6 +1,6 @@
 .PHONY: build test test-race web-deps web-dev web-build web-test web-typecheck all clean
 
-VERSION := 1.15.0
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null | sed 's/^v//' || echo dev)
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
 # Full build: bundle web assets first, then embed them into the Go binary.
