@@ -562,6 +562,57 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
   // web/src/styles/tokens-lit.ts
   var globalCSS = r(globalCSSString);
 
+  // web/src/router.ts
+  var listeners = /* @__PURE__ */ new Set();
+  var started = false;
+  var cleanup;
+  function emit() {
+    const path = currentPath();
+    for (const listener of listeners) listener(path);
+  }
+  function currentPath() {
+    return location.pathname + location.search + location.hash;
+  }
+  function navigate(path, options = {}) {
+    if (path === currentPath()) return;
+    if (options.replace) history.replaceState({}, "", path);
+    else history.pushState({}, "", path);
+    emit();
+  }
+  function subscribe(listener) {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+  function onClick(event) {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const anchor = event.composedPath().find(
+      (node) => node?.tagName === "A" && !!node.getAttribute?.("href")
+    );
+    if (!anchor || anchor.target || anchor.hasAttribute("download") || anchor.rel.split(" ").includes("external")) return;
+    const url = new URL(anchor.href, location.href);
+    if (url.origin !== location.origin || !/^https?:$/.test(url.protocol)) return;
+    event.preventDefault();
+    navigate(url.pathname + url.search + url.hash);
+  }
+  function startRouter(doc = document, win = window) {
+    if (started) return () => {
+    };
+    started = true;
+    const onPop = () => emit();
+    win.addEventListener("popstate", onPop);
+    doc.addEventListener("click", onClick);
+    cleanup = () => {
+      win.removeEventListener("popstate", onPop);
+      doc.removeEventListener("click", onClick);
+      listeners.clear();
+      started = false;
+      cleanup = void 0;
+    };
+    return cleanup;
+  }
+
   // web/src/components/gw-shell.ts
   var adminNav = [
     { href: "/admin/models", label: "\u6A21\u578B", icon: "\u25C7" },
@@ -622,6 +673,46 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
   `];
   GwShell.properties = { title: { state: true }, path: { state: true }, version: { state: true }, nav: { state: true }, width: { state: true } };
   if (!customElements.get("gw-shell")) customElements.define("gw-shell", GwShell);
+
+  // web/src/api.ts
+  async function api(path, opts) {
+    const r4 = await fetch(path, opts);
+    const j = await r4.json();
+    if (!j.ok) throw new Error(j.error?.message || "HTTP " + r4.status);
+    return j;
+  }
+  function post(path, body) {
+    return api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  }
+  function formToObject(form) {
+    const out = {};
+    for (const el of Array.from(form.elements)) {
+      const name = el.name;
+      if (!name || el.disabled) continue;
+      if (el.type === "checkbox") out[name] = !!el.checked;
+      else if (el.type === "radio") {
+        if (el.checked) out[name] = el.value;
+      } else if (el.multiple) {
+        const values = [];
+        for (const opt of Array.from(el.options)) if (opt.selected) values.push(opt.value);
+        out[name] = values;
+      } else if (el.type === "number") out[name] = el.value === "" ? null : Number(el.value);
+      else out[name] = el.value;
+    }
+    return out;
+  }
+  function afterWrite(res, fallback) {
+    return res.redirect || fallback;
+  }
+  async function postAndNavigate(path, body, fallback) {
+    const res = await post(path, body);
+    const target = afterWrite(res, fallback);
+    if (target) navigate(target);
+    return res;
+  }
+  function submitAndNavigate(form, path, fallback) {
+    return postAndNavigate(path, formToObject(form), fallback);
+  }
 
   // web/src/components/ui.ts
   var uiCSS = i`
@@ -717,6 +808,7 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
       this.width = 1180;
       this.loading = false;
       this.error = "";
+      this.lastPath = "";
     }
     load() {
       return void 0;
@@ -726,10 +818,15 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
     }
     connectedCallback() {
       super.connectedCallback();
+      this.lastPath = this.path;
       void this.load();
     }
     updated(changed) {
       if (changed.has("path")) {
+        if (this.lastPath && this.path !== this.lastPath) {
+          this.lastPath = this.path;
+          void this.load();
+        }
         this.nav = this.path.startsWith("/user/") ? userNav : adminNav;
         this.width = this.path.startsWith("/user/") ? 980 : 1180;
       }
@@ -755,18 +852,11 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
     error: { state: true }
   };
 
-  // web/src/api.ts
-  async function api(path, opts) {
-    const r4 = await fetch(path, opts);
-    const j = await r4.json();
-    if (!j.ok) throw new Error(j.error?.message || "HTTP " + r4.status);
-    return j;
-  }
-
   // web/src/components/loaders.ts
   var q = (name) => new URLSearchParams(location.search).get(name) || "";
   var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-  async function loadData(pathname) {
+  async function loadData(path) {
+    const pathname = path.split("?")[0].split("#")[0];
     if (pathname === "/") return [];
     if (pathname === "/admin/models") return (await api("/api/admin/models")).data || [];
     if (pathname === "/admin/model-groups") return (await api("/api/admin/model-groups")).data || [];
@@ -843,31 +933,32 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
   }
 
   // web/src/components/pages/gw-models-page.ts
-  function postForm(url) {
-    const f3 = document.createElement("form");
-    f3.method = "POST";
-    f3.action = url;
-    document.body.appendChild(f3);
-    f3.submit();
-  }
   var GwModelsPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = [];
       this.error = "";
-      this.post = postForm;
+    }
+    async run(url) {
+      try {
+        await postAndNavigate(url, {}, currentPath());
+        this.error = "";
+        await this.load();
+      } catch (e4) {
+        this.error = e4.message;
+      }
     }
     move(model, dir) {
-      this.post(`/admin/models/move/${encodeURIComponent(model.customModel)}?direction=${dir}`);
+      void this.run(`/api/admin/models/move/${encodeURIComponent(model.customModel)}?direction=${dir}`);
     }
     toggle(model) {
-      this.post(`/admin/models/toggle-hidden/${encodeURIComponent(model.customModel)}`);
+      void this.run(`/api/admin/models/toggle-hidden/${encodeURIComponent(model.customModel)}`);
     }
     copy(model) {
-      if (confirm(`\u786E\u5B9A\u8981\u590D\u5236\u6A21\u578B "${model.customModel}" \u5417\uFF1F`)) this.post(`/admin/models/copy/${encodeURIComponent(model.customModel)}`);
+      if (confirm(`\u786E\u5B9A\u8981\u590D\u5236\u6A21\u578B "${model.customModel}" \u5417\uFF1F`)) void this.run(`/api/admin/models/copy/${encodeURIComponent(model.customModel)}`);
     }
     deleteModel(model) {
-      if (confirm(`\u786E\u5B9A\u8981\u5220\u9664\u6A21\u578B "${model.customModel}" \u5417\uFF1F`)) this.post(`/admin/models/delete/${encodeURIComponent(model.customModel)}`);
+      if (confirm(`\u786E\u5B9A\u8981\u5220\u9664\u6A21\u578B "${model.customModel}" \u5417\uFF1F`)) void this.run(`/api/admin/models/delete/${encodeURIComponent(model.customModel)}`);
     }
     load() {
       return loadData(this.path).then((d3) => {
@@ -915,6 +1006,15 @@ ${panel("\u6A21\u578B\u5217\u8868", `${this.data.length} \u4E2A\u6A21\u578B`, th
       this.error = "";
       this.success = "";
     }
+    async remove(g2) {
+      if (!g2 || !confirm(`\u786E\u5B9A\u5220\u9664\u5206\u7EC4 "${g2.name}" \u5417\uFF1F`)) return;
+      try {
+        await postAndNavigate(`/api/admin/model-groups/delete/${encodeURIComponent(g2.name)}`, {}, currentPath());
+        await this.load();
+      } catch (e4) {
+        this.error = e4.message;
+      }
+    }
     load() {
       return loadData(this.path).then((d3) => {
         this.data = d3;
@@ -926,7 +1026,7 @@ ${panel("\u6A21\u578B\u5217\u8868", `${this.data.length} \u4E2A\u6A21\u578B`, th
       const cards = this.data.map((g2) => b2`<article class="ui-panel" style="margin:0">
       <div class="ui-panel-head"><div><h3 class="ui-panel-title">${g2.name}</h3><p class="ui-panel-sub">${g2.models.length} 个模型</p></div><a class="ui-btn ui-btn-sm" href=${`/admin/model-groups/edit/${encodeURIComponent(g2.name)}`}>管理模型</a></div>
       <div class="ui-panel-body"><p class="ui-field-hint">${g2.desc || "\u2014"}</p><div class="ui-row" style="margin:10px 0 14px">${g2.models.slice(0, 5).map((m2) => b2`<a class="ui-badge" href=${`/admin/models/edit/${encodeURIComponent(m2)}`}>${m2}</a>`)}${g2.models.length > 5 ? b2`<span class="ui-field-hint">+${g2.models.length - 5}</span>` : ""}</div>
-      <form method="post" action=${`/admin/model-groups/delete/${encodeURIComponent(g2.name)}`}><button class="ui-btn ui-btn-sm ui-btn-danger">删除分组</button></form></div></article>`);
+      <button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.remove(g2)}>删除分组</button></div></article>`);
       return b2`
 ${pageHeader({ eyebrow: "Routing", title: "\u6A21\u578B\u5206\u7EC4", subtitle: "\u7BA1\u7406\u6A21\u578B\u5206\u7EC4\u914D\u7F6E", actions: b2`<a class="ui-btn" href="/admin/models">返回模型</a><a class="ui-btn ui-btn-primary" href="/admin/model-groups/new">+ 新建分组</a>` })}
 ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.success, "success") : ""}
@@ -946,6 +1046,25 @@ ${this.data.length ? b2`<div class="ui-grid ui-grid-auto">${cards}</div>` : pane
       this.enabled = true;
       this.error = "";
     }
+    async remove(u3) {
+      if (!u3 || !confirm(`\u786E\u5B9A\u5220\u9664\u7528\u6237 "${u3.name}" \u5417\uFF1F`)) return;
+      try {
+        await postAndNavigate(`/api/admin/users/delete/${encodeURIComponent(u3.name)}`, {}, currentPath());
+        await this.load();
+      } catch (e4) {
+        this.error = e4.message;
+      }
+    }
+    async toggle() {
+      try {
+        const next = !this.enabled;
+        await postAndNavigate("/api/admin/users/toggle", { enabled: next }, currentPath());
+        this.enabled = next;
+        await this.load();
+      } catch (e4) {
+        this.error = e4.message;
+      }
+    }
     load() {
       return loadData(this.path).then((d3) => {
         this.data = d3;
@@ -959,9 +1078,9 @@ ${this.data.length ? b2`<div class="ui-grid ui-grid-auto">${cards}</div>` : pane
       <div class="ui-panel-body">
         <div class="ui-field-hint ui-mono" style="margin-bottom:10px">${u3.apikey.slice(0, 8)}…</div>
         <div class="ui-row">${!u3.allowedModels || u3.allowedModels.length === 0 ? b2`<span class="ui-badge">所有模型</span>` : b2`${u3.allowedModels.slice(0, 3).map((m2) => b2`<span class="ui-badge">${m2}</span>`)}${(u3.allowedModels?.length || 0) > 3 ? b2`<span class="ui-field-hint">等${u3.allowedModels.length - 3}个模型</span>` : ""}`}</div>
-        <div class="ui-row" style="margin-top:14px"><form method="post" action=${`/api/admin/users/delete/${encodeURIComponent(u3.name)}`}><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form></div>
+        <div class="ui-row" style="margin-top:14px"><button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.remove(u3)}>删除</button></div>
       </div></article>`);
-      const toggle = b2`<form method="post" action="/admin/users/toggle"><input type="hidden" name="enabled" value=${this.enabled ? "false" : "true"}><button class="ui-btn">${this.enabled ? "\u7981\u7528\u7528\u6237\u8BA4\u8BC1" : "\u542F\u7528\u7528\u6237\u8BA4\u8BC1"}</button></form>`;
+      const toggle = b2`<button class="ui-btn" @click=${() => this.toggle()}>${this.enabled ? "\u7981\u7528\u7528\u6237\u8BA4\u8BC1" : "\u542F\u7528\u7528\u6237\u8BA4\u8BC1"}</button>`;
       return b2`
 ${pageHeader({ eyebrow: "Access", title: "\u7528\u6237\u7BA1\u7406", subtitle: "\u7BA1\u7406\u8BBF\u95EE API \u7684\u7528\u6237\u548C\u5BC6\u94A5", actions: b2`<a class="ui-btn ui-btn-primary" href="/admin/users/new">+ 新增用户</a>${toggle}` })}
 ${this.error ? notice(this.error, "error") : ""}
@@ -981,6 +1100,28 @@ ${this.data.length ? b2`<div class="ui-grid ui-grid-auto">${cards}</div>` : pane
       this.error = "";
       this.success = "";
     }
+    async remove(k2) {
+      if (!k2 || !confirm(`\u786E\u5B9A\u5220\u9664 ${k2.name}?`)) return;
+      try {
+        await postAndNavigate(`/api/admin/api-keys/delete/${encodeURIComponent(k2.id)}`, {}, currentPath());
+        await this.load();
+      } catch (e4) {
+        this.error = e4.message;
+      }
+    }
+    async submit(e4) {
+      e4.preventDefault();
+      const form = e4.currentTarget;
+      const url = this.editing ? `/api/admin/api-keys/edit/${encodeURIComponent(this.editing.id)}` : "/api/admin/api-keys";
+      try {
+        await submitAndNavigate(form, url, currentPath());
+        this.editing = void 0;
+        this.success = "\u4FDD\u5B58\u6210\u529F";
+        await this.load();
+      } catch (err) {
+        this.error = err.message;
+      }
+    }
     load() {
       return loadData(this.path).then((d3) => {
         this.data = d3;
@@ -994,12 +1135,10 @@ ${this.data.length ? b2`<div class="ui-grid ui-grid-auto">${cards}</div>` : pane
       <td class="ui-mono">${k2.keyHint || (k2.key ? "*****" + k2.key.slice(-4) : "*****")}</td>
       <td><div class="ui-row">
         <a class="ui-btn ui-btn-sm" href=${`/admin/api-keys/edit/${encodeURIComponent(k2.id)}`}>编辑</a>
-        <form method="post" action=${`/admin/api-keys/delete/${encodeURIComponent(k2.id)}`} @submit=${(e4) => {
-        if (!confirm(`\u786E\u5B9A\u5220\u9664 ${k2.name}?`)) e4.preventDefault();
-      }}><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form>
+        <button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.remove(k2)}>删除</button>
       </div></td>
     </tr>`);
-      const form = b2`<form method="post" action=${this.editing ? "/admin/api-keys/edit/" + encodeURIComponent(this.editing.id) : "/admin/api-keys"}>
+      const form = b2`<form @submit=${(e4) => this.submit(e4)}>
       ${formField("\u540D\u79F0", b2`<input class="ui-input" name="name" value=${this.editing ? this.editing.name : ""} placeholder="例如：主网关 Key" required>`)}
       ${formField("API Key", b2`<input class="ui-input" name="key" placeholder=${this.editing ? "\u7559\u7A7A\u8868\u793A\u4FDD\u6301\u5F53\u524D\u503C" : "sk-..."} ?required=${!this.editing}>`, this.editing ? `\u5F53\u524D\u503C\uFF1A${this.editing.keyHint}` : "")}
       <div class="ui-row"><button class="ui-btn ui-btn-primary">${this.editing ? "\u4FDD\u5B58\u4FEE\u6539" : "\u6DFB\u52A0\u5BC6\u94A5"}</button><a class="ui-btn" href="/admin/api-keys">取消</a></div>
@@ -1027,6 +1166,15 @@ ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.suc
       this.error = "";
       this.success = "";
     }
+    async submit(e4) {
+      e4.preventDefault();
+      try {
+        await submitAndNavigate(e4.currentTarget, "/api/admin/announcement");
+        this.success = "\u4FDD\u5B58\u6210\u529F";
+      } catch (err) {
+        this.error = err.message;
+      }
+    }
     load() {
       return loadData(this.path).then((d3) => {
         this.data = d3;
@@ -1038,7 +1186,7 @@ ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.suc
       return b2`
 ${pageHeader({ eyebrow: "ANNOUNCEMENT", title: "\u516C\u544A\u7BA1\u7406", subtitle: "\u8BBE\u7F6E\u7528\u6237\u9875\u9762\u663E\u793A\u7684\u516C\u544A\uFF08\u652F\u6301 Markdown\uFF09" })}
 ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form method="post" action="/admin/announcement"><div class="form-group"><label class="form-label" for="content">公告内容</label><textarea class="form-textarea" id="content" name="content" rows="12">${this.data}</textarea></div><div class="form-group"><label><input type="checkbox" name="enabled" ?checked=${this.enabled}> 启用公告</label></div><div class="form-actions"><button class="btn btn-primary" type="submit">保存公告</button></div></form></div>`)}
+${panel("", "", b2`<div class="form-card"><form @submit=${(e4) => this.submit(e4)}><div class="form-group"><label class="form-label" for="content">公告内容</label><textarea class="form-textarea" id="content" name="content" rows="12">${this.data}</textarea></div><div class="form-group"><label><input type="checkbox" name="enabled" ?checked=${this.enabled}> 启用公告</label></div><div class="form-actions"><button class="btn btn-primary" type="submit">保存公告</button></div></form></div>`)}
 `;
     }
   };
@@ -1055,6 +1203,15 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action="/admin/ann
       this.cliDebug = false;
       this.error = "";
       this.success = "";
+    }
+    async submit(e4) {
+      e4.preventDefault();
+      try {
+        await submitAndNavigate(e4.currentTarget, "/api/admin/privacy");
+        this.success = "\u4FDD\u5B58\u6210\u529F";
+      } catch (err) {
+        this.error = err.message;
+      }
     }
     load() {
       return loadData(this.path).then((d3) => {
@@ -1074,7 +1231,7 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action="/admin/ann
       return b2`
 ${pageHeader({ eyebrow: "PRIVACY", title: "\u9690\u79C1\u4FDD\u62A4", subtitle: "\u63A7\u5236\u65E5\u5FD7\u4E2D\u7684\u654F\u611F\u4FE1\u606F\u5904\u7406" })}
 ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form id="privacy-form" method="post" action="/admin/privacy">
+${panel("", "", b2`<div class="form-card"><form id="privacy-form" @submit=${(e4) => this.submit(e4)}>
   ${checks.map(([k2, label]) => b2`<div class="form-group"><label><input type="checkbox" name=${k2} ?checked=${!!s4[k2]}> ${label}</label></div>`)}
   <div class="form-group"><label class="form-label" for="pathPlaceholder">路径占位符</label><input class="form-input" id="pathPlaceholder" name="pathPlaceholder" value=${s4.pathPlaceholder || "USER"}></div>
   <div class="form-group"><label class="form-label">日志记录</label><label><input type="checkbox" name="detailLogEnabled" ?checked=${this.detailLogEnabled} ?disabled=${this.cliDebug}> 记录完整请求/响应日志</label>${this.cliDebug ? b2`<p class="form-hint">命令行启动时使用了 --debug，日志记录设置不可修改</p>` : ""}</div>
@@ -1122,7 +1279,7 @@ ${panel("", "", b2`<div class="form-card"><form id="privacy-form" method="post" 
       return b2`
 ${pageHeader({ eyebrow: "SECURITY", title: "\u5BC6\u7801\u8BBE\u7F6E", subtitle: "\u8BBE\u7F6E\u6216\u4FEE\u6539\u7BA1\u7406\u540E\u53F0\u767B\u5F55\u5BC6\u7801" })}
 ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form method="post" action="/api/admin/password" @submit=${this.submit}>
+${panel("", "", b2`<div class="form-card"><form @submit=${this.submit}>
   ${this.hasPassword ? b2`<div class="form-group"><label class="form-label" for="currentPassword">当前密码</label><input class="form-input" type="password" id="currentPassword" name="currentPassword"></div>` : ""}
   <div class="form-group"><label class="form-label" for="newPassword">新密码</label><input class="form-input" type="password" id="newPassword" name="newPassword"></div>
   <div class="form-group"><label class="form-label" for="confirmPassword">确认新密码</label><input class="form-input" type="password" id="confirmPassword" name="confirmPassword"></div>
@@ -1274,6 +1431,24 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action="/api/admin
       const s4 = this.shadowRoot.querySelector("#rawResponseSection");
       s4.style.display = s4.style.display === "none" ? "block" : "none";
     }
+    async submit(e4) {
+      e4.preventDefault();
+      const form = e4.currentTarget;
+      const payload = formToObject(form);
+      const editor = this.shadowRoot.querySelector("gw-json-editor");
+      try {
+        payload.defaultParams = JSON.parse(editor?.value || "{}");
+      } catch {
+        payload.defaultParams = {};
+      }
+      const isEdit = !!this.data.model?.customModel;
+      const url = isEdit ? `/api/admin/models/edit/${encodeURIComponent(this.data.model.customModel)}` : "/api/admin/models";
+      try {
+        await postAndNavigate(url, payload);
+      } catch (err) {
+        this.error = err.message;
+      }
+    }
     load() {
       return loadData(this.path).then((d3) => {
         this.data = d3;
@@ -1303,7 +1478,7 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action="/api/admin
       return b2`
 ${pageHeader({ eyebrow: "MODEL", title, subtitle: isEdit ? "\u4FEE\u6539\u6A21\u578B\u914D\u7F6E\u4E0E API Key \u5F15\u7528" : "\u521B\u5EFA\u65B0\u7684\u4E0A\u6E38\u6A21\u578B\u914D\u7F6E", actions: b2`<a class="ui-btn" href="/admin/models">返回模型</a>` })}
 ${err ? notice(err, "error") : ""}
-${panel("\u6A21\u578B\u914D\u7F6E", "", b2`<div class="form-card"><form method="post" action=${isEdit ? `/admin/models/edit/${encodeURIComponent(model.customModel)}` : "/admin/models"}>
+${panel("\u6A21\u578B\u914D\u7F6E", "", b2`<div class="form-card"><form @submit=${(e4) => this.submit(e4)}>
   <div class="form-group"><label class="form-label" for="customModel">模型名称</label><input class="form-input" id="customModel" name="customModel" value=${model.customModel || ""} placeholder="例如：my-gpt4" required><span class="form-hint">调用 API 时使用此名称</span></div>
   <div class="form-group"><label class="form-label" for="realModel">实际模型名称</label><input class="form-input" id="realModel" name="realModel" value=${model.realModel || ""} placeholder="例如：gpt-4" required><span class="form-hint">上游 API 支持的模型名称</span></div>
   <div class="form-group"><label class="form-label" for="provider">Provider</label><select class="form-select" id="provider" name="provider" required><option value="">请选择...</option>${["openai", "response-api", "anthropic"].map((p3) => b2`<option value=${p3} ?selected=${model.provider === p3}>${p3}</option>`)}</select></div>
@@ -1351,6 +1526,26 @@ ${testHtml}
       this.sync();
       this.requestUpdate();
     }
+    async submit(e4) {
+      e4.preventDefault();
+      const isEdit = !!this.data.group?.name;
+      const url = isEdit ? `/api/admin/model-groups/edit/${encodeURIComponent(this.data.group.name)}` : "/api/admin/model-groups";
+      try {
+        await submitAndNavigate(e4.currentTarget, url);
+      } catch (err) {
+        this.error = err.message;
+      }
+    }
+    async removeFirst() {
+      const name = this.data.group?.name;
+      if (!name || !this.selected.length) return;
+      try {
+        await postAndNavigate(`/api/admin/model-groups/edit/${encodeURIComponent(name)}/remove-model`, { model: this.selected[0] });
+        await this.load();
+      } catch (err) {
+        this.error = err.message;
+      }
+    }
     load() {
       return loadData(this.path).then((d3) => {
         this.data = d3;
@@ -1368,7 +1563,7 @@ ${testHtml}
       return b2`
 ${pageHeader({ eyebrow: "MODEL GROUP", title, subtitle: "\u6A21\u578B\u7EC4\u53EF\u4F5C\u4E3A API model \u4F7F\u7528\uFF0C\u6309\u987A\u5E8F\u9009\u62E9\u591A\u4E2A\u6A21\u578B\u5B9E\u73B0 fallback", actions: b2`<a class="ui-btn" href="/admin/model-groups">返回模型组</a>` })}
 ${err ? notice(err, "error") : ""}${this.data.success ? notice(this.data.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? `/admin/model-groups/edit/${encodeURIComponent(group.name)}` : "/admin/model-groups/add"}>
+${panel("", "", b2`<div class="form-card"><form @submit=${(e4) => this.submit(e4)}>
   <input type="hidden" name="originalName" value=${group.name || ""}>
   <div class="form-group"><label class="form-label" for="name">组名</label><input class="form-input" id="name" name="name" value=${group.name || ""} placeholder="例如：my-group" required></div>
   <div class="form-group"><label class="form-label" for="desc">描述</label><input class="form-input" id="desc" name="desc" value=${group.desc || ""} placeholder="可选"></div>
@@ -1377,7 +1572,7 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? 
         this.requestUpdate();
       }}></div>
   <div class="model-selector"><div><h3 class="model-list-title">可用模型</h3><div class="model-list" id="all-models">${filtered.map((m2) => b2`<label class="model-item" data-name=${m2.customModel}><input type="checkbox" name="modelCheckbox" value=${m2.customModel} ?checked=${this.selected.includes(m2.customModel)} @change=${() => this.sync()}> <span class="model-item-name">${m2.customModel}</span><span class="model-item-desc">${m2.desc || ""}</span></label>`)}</div></div>
-  <div><h3 class="model-list-title">已选模型（按顺序）</h3><div class="model-list" id="selected-models">${this.selected.length ? this.selected.map((n4, i5) => b2`<div class="model-item"><span class="selected-index">${i5 + 1}</span><span class="model-item-name">${n4}</span><button type="button" class="btn btn-small btn-danger" @click=${() => this.removeModel(i5)}>移除</button></div>`) : b2`<p class="model-list-empty">尚未选择模型</p>`}</div>${isEdit ? b2`<div class="model-actions"><a class="btn btn-small" href=${`/admin/model-groups/edit/${encodeURIComponent(group.name)}/remove-model?model=${encodeURIComponent(this.selected[0] || "")}`}>移除首个模型</a></div>` : ""}</div></div>
+  <div><h3 class="model-list-title">已选模型（按顺序）</h3><div class="model-list" id="selected-models">${this.selected.length ? this.selected.map((n4, i5) => b2`<div class="model-item"><span class="selected-index">${i5 + 1}</span><span class="model-item-name">${n4}</span><button type="button" class="btn btn-small btn-danger" @click=${() => this.removeModel(i5)}>移除</button></div>`) : b2`<p class="model-list-empty">尚未选择模型</p>`}</div>${isEdit ? b2`<div class="model-actions"><button type="button" class="btn btn-small" @click=${() => this.removeFirst()}>移除首个模型</button></div>` : ""}</div></div>
   <input name="models" type="hidden" .value=${JSON.stringify(this.selected)}>
   <div class="form-actions"><button class="btn btn-primary" type="submit">保存模型组</button><a class="btn btn-secondary" href="/admin/model-groups">取消</a></div>
 </form></div>`)}
@@ -1394,6 +1589,16 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? 
       super(...arguments);
       this.data = { models: [] };
       this.error = "";
+    }
+    async submit(e4) {
+      e4.preventDefault();
+      const isEdit = !!this.data.user?.name;
+      const url = isEdit ? `/api/admin/users/edit/${encodeURIComponent(this.data.user.name)}` : "/api/admin/users";
+      try {
+        await submitAndNavigate(e4.currentTarget, url);
+      } catch (err) {
+        this.error = err.message;
+      }
     }
     load() {
       return loadData(this.path).then((d3) => {
@@ -1412,7 +1617,7 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? 
       return b2`
 ${pageHeader({ eyebrow: "USER", title, subtitle: isEdit ? `\u7528\u6237\uFF1A${user.name || ""}` : "\u521B\u5EFA\u7528\u6237\u5E76\u5206\u914D\u7528\u6237\u7EC4", actions: b2`<a class="ui-btn" href="/admin/users">返回用户列表</a>` })}
 ${err ? notice(err, "error") : ""}${this.data.success ? notice(this.data.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? `/admin/users/edit/${encodeURIComponent(user.name)}` : "/admin/users/add"}>
+${panel("", "", b2`<div class="form-card"><form @submit=${(e4) => this.submit(e4)}>
   <div class="form-group"><label class="form-label" for="name">用户名</label><input class="form-input" id="name" name="name" value=${user.name || ""} ?readonly=${isEdit}></div>
   <div class="form-group"><label class="form-label" for="description">描述</label><input class="form-input" id="description" name="description" value=${user.description || ""}></div>
   <div class="form-group"><label class="form-label" for="apiKey">API Key</label><input class="form-input" id="apiKey" name="apiKey" value=${user.apikey || user.apiKey || ""} placeholder="留空自动生成"></div>
@@ -1447,7 +1652,6 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? 
     editLimit(i5) {
       const l3 = this.data[i5];
       const sr = this.shadowRoot;
-      sr.querySelector("#editForm").action = `/api/admin/models/${encodeURIComponent(this.model)}/limits/edit/${i5}`;
       sr.querySelector("#editIndex").value = String(i5);
       sr.querySelector("#editType").value = l3.type;
       sr.querySelector("#editPeriod").value = l3.period;
@@ -1455,6 +1659,39 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? 
       sr.querySelector("#editMax").value = String(l3.max);
       sr.querySelector("#editCostMax").value = String(l3.costMax);
       sr.querySelector("#editGroupName").value = l3.groupName;
+    }
+    async after() {
+      this.success = "\u4FDD\u5B58\u6210\u529F";
+      await this.load();
+    }
+    async add(e4) {
+      e4.preventDefault();
+      try {
+        await submitAndNavigate(e4.currentTarget, `/api/admin/models/${encodeURIComponent(this.model)}/limits/add`, currentPath());
+        await this.after();
+      } catch (err) {
+        this.error = err.message;
+      }
+    }
+    async edit(e4) {
+      e4.preventDefault();
+      const form = e4.currentTarget;
+      const index = formToObject(form).index;
+      try {
+        await submitAndNavigate(form, `/api/admin/models/${encodeURIComponent(this.model)}/limits/edit/${index}`, currentPath());
+        await this.after();
+      } catch (err) {
+        this.error = err.message;
+      }
+    }
+    async remove(i5) {
+      if (!confirm("\u786E\u5B9A\u5220\u9664\u8BE5\u89C4\u5219\uFF1F")) return;
+      try {
+        await postAndNavigate(`/api/admin/models/${encodeURIComponent(this.model)}/limits/delete/${i5}`, {}, currentPath());
+        await this.after();
+      } catch (e4) {
+        this.error = e4.message;
+      }
     }
     load() {
       return loadData(this.path).then((d3) => {
@@ -1465,12 +1702,12 @@ ${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? 
     }
     renderPage() {
       const m2 = this.model;
-      const rows = this.data.map((l3, i5) => b2`<tr><td>${l3.type}</td><td>${l3.period}</td><td>${l3.periodValue}</td><td>${l3.type === "cost" ? l3.costMax : l3.max}</td><td>${l3.groupName || ""}</td><td>${l3.enabled ? "\u542F\u7528" : "\u7981\u7528"}</td><td><div class="actions-cell"><button class="btn btn-small" type="button" @click=${() => this.editLimit(i5)}>编辑</button><form method="post" action=${`/api/admin/models/${encodeURIComponent(m2)}/limits/delete/${i5}`} style="display:inline"><button class="btn btn-small btn-danger" type="submit">删除</button></form></div></td></tr>`);
+      const rows = this.data.map((l3, i5) => b2`<tr><td>${l3.type}</td><td>${l3.period}</td><td>${l3.periodValue}</td><td>${l3.type === "cost" ? l3.costMax : l3.max}</td><td>${l3.groupName || ""}</td><td>${l3.enabled ? "\u542F\u7528" : "\u7981\u7528"}</td><td><div class="actions-cell"><button class="btn btn-small" type="button" @click=${() => this.editLimit(i5)}>编辑</button><button class="btn btn-small btn-danger" type="button" @click=${() => this.remove(i5)}>删除</button></div></td></tr>`);
       return b2`
 ${pageHeader({ eyebrow: "MODEL LIMITS", title: `\u9650\u5236\u89C4\u5219\u7BA1\u7406 - ${m2}`, subtitle: "\u8BBE\u7F6E\u6BCF\u5206\u949F/\u6BCF\u5C0F\u65F6\u8BF7\u6C42\u6570\u3001token \u6570\u6216\u8D39\u7528\u9650\u5236", actions: b2`<a class="ui-btn" href="/admin/models">返回模型</a>` })}
 ${this.error ? b2`<div class="error-banner">${this.error}</div>` : ""}${this.success ? b2`<div class="success-banner">${this.success}</div>` : ""}
 ${panel("\u9650\u5236\u89C4\u5219", "", b2`<div class="limits-card"><h2 class="limits-title">限制规则管理</h2>${this.data.length ? b2`<table class="limits-table"><thead><tr><th>类型</th><th>周期</th><th>周期值</th><th>上限</th><th>用户组</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>` : empty("\u6682\u65E0\u9650\u5236\u89C4\u5219")}
-<h3 class="section-title">新增规则</h3><form method="post" action=${`/api/admin/models/${encodeURIComponent(m2)}/limits/add`}><input type="hidden" name="model" value=${m2}><div class="form-grid">
+<h3 class="section-title">新增规则</h3><form @submit=${(e4) => this.add(e4)}><input type="hidden" name="model" value=${m2}><div class="form-grid">
   <div class="form-group"><label class="form-label" for="type">类型</label><select class="form-select" id="type" name="type" @change=${() => this.handleTypeChange()}><option value="rpm">请求数/分钟</option><option value="tpm">Token/分钟</option><option value="cost">费用</option></select></div>
   <div class="form-group"><label class="form-label" for="period">周期</label><select class="form-select" id="period" name="period"><option value="minute">分钟</option><option value="hour">小时</option><option value="day">天</option></select></div>
   <div class="form-group"><label class="form-label" for="periodValue">周期值</label><input class="form-input" id="periodValue" name="periodValue" type="number" value="1"></div>
@@ -1479,7 +1716,7 @@ ${panel("\u9650\u5236\u89C4\u5219", "", b2`<div class="limits-card"><h2 class="l
   <div class="form-group"><label class="form-label" for="groupName">用户组</label><input class="form-input" id="groupName" name="groupName" value="default"></div>
   <div class="form-group"><label><input type="checkbox" id="enabled" name="enabled" value="true" checked> 启用</label></div>
 </div><div class="form-actions"><button class="btn btn-primary" type="submit">添加规则</button></div></form>
-<h3 class="section-title">修改规则</h3><form id="editForm" method="post" action=""><div class="form-grid">
+<h3 class="section-title">修改规则</h3><form id="editForm" @submit=${(e4) => this.edit(e4)}><div class="form-grid">
   <div class="form-group"><label class="form-label">索引</label><input class="form-input" id="editIndex" name="index" type="number" readonly></div>
   <div class="form-group"><label class="form-label">类型</label><select class="form-select" id="editType" name="type"><option value="rpm">rpm</option><option value="tpm">tpm</option><option value="cost">cost</option></select></div>
   <div class="form-group"><label class="form-label">周期</label><select class="form-select" id="editPeriod" name="period"><option value="minute">minute</option><option value="hour">hour</option><option value="day">day</option></select></div>
@@ -1538,6 +1775,15 @@ ${panel("\u9650\u5236\u89C4\u5219", "", b2`<div class="limits-card"><h2 class="l
       this.tipVisible = false;
       this.requestUpdate();
     }
+    submitFilter(e4) {
+      e4.preventDefault();
+      const form = e4.currentTarget;
+      const params = new URLSearchParams();
+      for (const el of Array.from(form.elements)) {
+        if (el.name && el.value) params.set(el.name, el.value);
+      }
+      navigate("/admin/stats?" + params.toString());
+    }
     load() {
       return loadData(this.path).then((d3) => {
         this.data = d3;
@@ -1582,7 +1828,7 @@ ${panel("\u9650\u5236\u89C4\u5219", "", b2`<div class="limits-card"><h2 class="l
       const detailRows = (s4.details || []).filter((r4) => r4 && r4.timestamp).map((r4) => b2`<tr><td>${new Date(r4.timestamp).toLocaleString()}</td><td>${r4.userName || "-"}</td><td>${r4.customModel}</td><td>${r4.modelGroup || "\u2014"}</td><td>${r4.statusCode}</td><td>${formatDuration(r4.durationMs)}</td><td>${r4.ttftMs != null ? formatDuration(r4.ttftMs) : "\u2014"}</td><td>${r4.tps != null ? r4.tps.toFixed(1) : "\u2014"}</td><td>${formatNumber(r4.completionTokens)}</td></tr>`);
       return b2`
 ${pageHeader({ eyebrow: "Analytics", title: "\u7EDF\u8BA1 Dashboard", subtitle: `${s4.dateRange || ""} \xB7 \u5E73\u5747\u5EF6\u8FDF ${formatDuration(s4.avgDuration)}` })}
-<form method="get" action="/admin/stats" class="ui-row" id="stats-filter-form"><input class="ui-input" style="width:auto" type="date" id="start" name="startDate" value=${s4.startDate}><input class="ui-input" style="width:auto" type="date" id="end" name="endDate" value=${s4.endDate}><input class="ui-input" style="width:150px" name="userName" placeholder="用户" value=${s4.userName || ""}><input class="ui-input" style="width:180px" name="model" placeholder="模型" value=${s4.model || ""}><button class="ui-btn ui-btn-primary">查询</button><button type="button" class="ui-btn" data-days="1" @click=${() => this.setDays(1)}>今天</button><button type="button" class="ui-btn" data-days="7" @click=${() => this.setDays(7)}>7天</button><button type="button" class="ui-btn" data-days="30" @click=${() => this.setDays(30)}>30天</button></form>
+<form @submit=${(e4) => this.submitFilter(e4)} class="ui-row" id="stats-filter-form"><input class="ui-input" style="width:auto" type="date" id="start" name="startDate" value=${s4.startDate}><input class="ui-input" style="width:auto" type="date" id="end" name="endDate" value=${s4.endDate}><input class="ui-input" style="width:150px" name="userName" placeholder="用户" value=${s4.userName || ""}><input class="ui-input" style="width:180px" name="model" placeholder="模型" value=${s4.model || ""}><button class="ui-btn ui-btn-primary">查询</button><button type="button" class="ui-btn" data-days="1" @click=${() => this.setDays(1)}>今天</button><button type="button" class="ui-btn" data-days="7" @click=${() => this.setDays(7)}>7天</button><button type="button" class="ui-btn" data-days="30" @click=${() => this.setDays(30)}>30天</button></form>
 <div style="height:14px"></div><div class="ui-grid ui-grid-auto">${cards.map(([label, value, sub]) => b2`<div class="ui-panel" style="margin:0;padding:16px 18px"><div class="ui-field-hint">${label}</div><div class="ui-mono" style="font-size:22px;font-weight:800;margin-top:4px">${value}</div><div class="ui-field-hint">${sub}</div></div>`)}</div><div style="height:16px"></div>
 ${panel("Token \u7528\u91CF", "", b2`<div class="ui-grid ui-grid-auto">${tokens.map(([k2, v2]) => b2`<div><div class="ui-field-hint">${k2}</div><div class="ui-mono" style="font-size:18px;font-weight:700">${formatNumber(v2 || 0)}</div></div>`)}</div>`)}
 ${days.length ? b2`<div class="stats-section-card"><h2 class="stats-section-title">🗓️ 每日 Token 消耗</h2><div style="font-size:12px;color:var(--ui-muted);margin-bottom:10px">过去 ${days.length} 天 · 共 ${formatNumber(totalHeatTokens)} tokens${rangeText}</div><div class="heatmap-scroll"><div class="heatmap-months">${weeks.map((_2, col) => {
@@ -1654,6 +1900,15 @@ ${panel("\u53EF\u7528\u6A21\u578B", `${models.length} \u4E2A\u6A21\u578B / ${gro
       this.data = {};
       this.error = "";
     }
+    submitFilter(e4) {
+      e4.preventDefault();
+      const form = e4.currentTarget;
+      const params = new URLSearchParams();
+      for (const el of Array.from(form.elements)) {
+        if (el.name && el.value) params.set(el.name, el.value);
+      }
+      navigate("/user/stats?" + params.toString());
+    }
     load() {
       return loadData(this.path).then((d3) => {
         this.data = d3;
@@ -1664,7 +1919,7 @@ ${panel("\u53EF\u7528\u6A21\u578B", `${models.length} \u4E2A\u6A21\u578B / ${gro
     renderPage() {
       const s4 = this.data;
       const pct = s4.totalRequests ? s4.successfulRequests / s4.totalRequests * 100 : 0;
-      const filter = b2`<form method="get" action="/user/stats" class="ui-row"><input class="ui-input" style="width:auto" type="date" name="startDate" value=${s4.start}><input class="ui-input" style="width:auto" type="date" name="endDate" value=${s4.end}><button class="ui-btn ui-btn-primary">查询</button></form>`;
+      const filter = b2`<form @submit=${(e4) => this.submitFilter(e4)} class="ui-row"><input class="ui-input" style="width:auto" type="date" name="startDate" value=${s4.start}><input class="ui-input" style="width:auto" type="date" name="endDate" value=${s4.end}><button class="ui-btn ui-btn-primary">查询</button></form>`;
       if (!s4.totalRequests) {
         return b2`
 ${pageHeader({ eyebrow: "Analytics", title: `\u4F7F\u7528\u7EDF\u8BA1 \u2014 ${s4.userName || ""}`, subtitle: "\u67E5\u770B API \u4F7F\u7528\u60C5\u51B5\u4E0E\u7EDF\u8BA1\u6570\u636E" })}
@@ -1708,6 +1963,17 @@ ${panel("Token \u7528\u91CF\u660E\u7EC6", "", table(["\u6A21\u578B", "\u8BF7\u6C
         this.error = e4.message;
       });
     }
+    async submit(e4) {
+      e4.preventDefault();
+      const isAdmin = this.mode !== "user-login";
+      const url = isAdmin ? "/api/admin/login" : "/api/user/login";
+      this.error = "";
+      try {
+        await postAndNavigate(url, formToObject(e4.currentTarget));
+      } catch (err) {
+        this.error = err.message;
+      }
+    }
     updated(changed) {
       if (!changed.has("path")) return;
       this.loadMode();
@@ -1717,14 +1983,13 @@ ${panel("Token \u7528\u91CF\u660E\u7EC6", "", table(["\u6A21\u578B", "\u8BF7\u6C
       const isAdmin = this.mode !== "user-login";
       const heading = setup ? "\u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801" : isAdmin ? "\u7BA1\u7406\u5458\u767B\u5F55" : "\u7528\u6237\u767B\u5F55";
       const sub = setup ? "\u9996\u6B21\u4F7F\u7528\u8BF7\u8BBE\u7F6E\u7BA1\u7406\u5458\u5BC6\u7801" : isAdmin ? "\u767B\u5F55\u540E\u7BA1\u7406\u6A21\u578B\u3001\u5BC6\u94A5\u4E0E\u7EDF\u8BA1\u4FE1\u606F\u3002" : "\u4F7F\u7528\u7528\u6237 API Key \u67E5\u770B\u53EF\u7528\u6A21\u578B\u4E0E\u7528\u91CF\u3002";
-      const action = isAdmin ? "/api/admin/login" : "/api/user/login";
       const label = isAdmin ? "\u5BC6\u7801" : "API Key";
       const name = isAdmin ? "password" : "apikey";
       const btn = setup ? "\u8BBE\u7F6E\u5BC6\u7801" : "\u767B\u5F55";
       return b2`<div class="ui-login-wrap"><div class="ui-login-card"><div class="ui-login-mark">L</div><h1 class="ui-login-title">${heading}</h1>
 <p class="ui-login-sub">${sub}</p>
 ${this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : ""}
-<form method="post" action=${action}><label class="ui-field"><span class="ui-field-label">${label}</span><input class="ui-input" type="password" name=${name} placeholder=${isAdmin ? "\u8BF7\u8F93\u5165\u5BC6\u7801" : "\u8BF7\u8F93\u5165 API Key"} required></label><button class="ui-btn ui-btn-primary" style="width:100%">${btn}</button></form>
+<form @submit=${(e4) => this.submit(e4)}><label class="ui-field"><span class="ui-field-label">${label}</span><input class="ui-input" type="password" name=${name} placeholder=${isAdmin ? "\u8BF7\u8F93\u5165\u5BC6\u7801" : "\u8BF7\u8F93\u5165 API Key"} required></label><button class="ui-btn ui-btn-primary" style="width:100%">${btn}</button></form>
 </div></div>`;
     }
   };
@@ -1766,19 +2031,26 @@ ${this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : 
   var GwApp = class extends i4 {
     constructor() {
       super(...arguments);
-      this.path = location.pathname;
+      this.path = currentPath();
     }
     connectedCallback() {
       super.connectedCallback();
       if (this.path === "/") {
-        location.replace("/admin/models");
-        return;
+        history.replaceState({}, "", "/admin/models");
+        this.path = currentPath();
       }
+      this.unsubscribe = subscribe((path) => {
+        this.path = path;
+      });
+    }
+    disconnectedCallback() {
+      this.unsubscribe?.();
+      super.disconnectedCallback();
     }
     updated() {
       const host = this.shadowRoot?.querySelector(".gw-page-host");
       if (!host) return;
-      const route = matchRoute(this.path);
+      const route = matchRoute(this.path.split("?")[0].split("#")[0]);
       if (!route) return;
       let page = host.firstElementChild;
       if (!page || page.tagName.toLowerCase() !== route.page) {
@@ -1786,7 +2058,8 @@ ${this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : 
         page = document.createElement(route.page);
         host.appendChild(page);
       }
-      const m2 = this.path.match(/^\/admin\/models\/([^/]+)\/limits$/);
+      const pathname = this.path.split("?")[0].split("#")[0];
+      const m2 = pathname.match(/^\/admin\/models\/([^/]+)\/limits$/);
       Object.assign(page, {
         path: this.path,
         ...route.title ? { title: route.title } : {},
@@ -1798,6 +2071,7 @@ ${this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : 
     }
   };
   GwApp.styles = i`${globalCSS}:host{display:block}`;
+  GwApp.properties = { path: { state: true } };
   if (!customElements.get("gw-app")) customElements.define("gw-app", GwApp);
 
   // web/src/admin.ts
@@ -1807,6 +2081,7 @@ ${this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : 
     else start();
   }
   function bootstrap() {
+    startRouter();
     if (!document.querySelector("gw-app")) {
       document.body.appendChild(document.createElement("gw-app"));
     }

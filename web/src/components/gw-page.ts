@@ -29,16 +29,23 @@ export class GwPage extends LitElement {
   loading = false
   error = ''
 
+  private lastPath = ''
+
   protected load(): Promise<unknown> | void { return undefined }
   protected renderPage(): TemplateResult { return html`` }
 
   connectedCallback(): void {
     super.connectedCallback()
+    this.lastPath = this.path
     void this.load()
   }
 
   protected updated(changed: Map<string, unknown>): void {
     if (changed.has('path')) {
+      if (this.lastPath && this.path !== this.lastPath) {
+        this.lastPath = this.path
+        void this.load()
+      }
       this.nav = this.path.startsWith('/user/') ? userNav : adminNav
       this.width = this.path.startsWith('/user/') ? 980 : 1180
     }

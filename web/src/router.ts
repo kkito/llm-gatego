@@ -27,8 +27,11 @@ export function subscribe(listener: RouteListener): () => void {
 
 function onClick(event: MouseEvent): void {
   if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-  const target = event.target as Element | null
-  const anchor = target?.closest?.('a[href]') as HTMLAnchorElement | null
+  // Lit renders links inside shadow roots. At document level the event is
+  // retargeted to the host element, so inspect the composed path instead.
+  const anchor = event.composedPath().find(
+    (node): node is HTMLAnchorElement => (node as Element)?.tagName === 'A' && !!(node as Element).getAttribute?.('href'),
+  )
   if (!anchor || anchor.target || anchor.hasAttribute('download') || anchor.rel.split(' ').includes('external')) return
   const url = new URL(anchor.href, location.href)
   if (url.origin !== location.origin || !/^https?:$/.test(url.protocol)) return

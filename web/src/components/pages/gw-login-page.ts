@@ -1,6 +1,6 @@
 import { LitElement, html, css, type TemplateResult } from 'lit'
 import { uiCSS } from '../ui.js'
-import { api } from '../../api.js'
+import { api, formToObject, postAndNavigate } from '../../api.js'
 
 export class GwLoginPage extends LitElement {
   static styles = [uiCSS, css`
@@ -31,6 +31,15 @@ export class GwLoginPage extends LitElement {
     }).catch(e => { this.error = e.message })
   }
 
+  private async submit(e: Event): Promise<void> {
+    e.preventDefault()
+    const isAdmin = this.mode !== 'user-login'
+    const url = isAdmin ? '/api/admin/login' : '/api/user/login'
+    this.error = ''
+    try { await postAndNavigate(url, formToObject(e.currentTarget as HTMLFormElement)) }
+    catch (err) { this.error = (err as Error).message }
+  }
+
   protected updated(changed: Map<string, unknown>): void {
     if (!changed.has('path')) return
     this.loadMode()
@@ -41,14 +50,13 @@ export class GwLoginPage extends LitElement {
     const isAdmin = this.mode !== 'user-login'
     const heading = setup ? '设置管理员密码' : isAdmin ? '管理员登录' : '用户登录'
     const sub = setup ? '首次使用请设置管理员密码' : isAdmin ? '登录后管理模型、密钥与统计信息。' : '使用用户 API Key 查看可用模型与用量。'
-    const action = isAdmin ? '/api/admin/login' : '/api/user/login'
     const label = isAdmin ? '密码' : 'API Key'
     const name = isAdmin ? 'password' : 'apikey'
     const btn = setup ? '设置密码' : '登录'
     return html`<div class="ui-login-wrap"><div class="ui-login-card"><div class="ui-login-mark">L</div><h1 class="ui-login-title">${heading}</h1>
 <p class="ui-login-sub">${sub}</p>
 ${this.error ? html`<div class="ui-notice ui-notice-error">${this.error}</div>` : ''}
-<form method="post" action=${action}><label class="ui-field"><span class="ui-field-label">${label}</span><input class="ui-input" type="password" name=${name} placeholder=${isAdmin ? '请输入密码' : '请输入 API Key'} required></label><button class="ui-btn ui-btn-primary" style="width:100%">${btn}</button></form>
+<form @submit=${(e: Event) => this.submit(e)}><label class="ui-field"><span class="ui-field-label">${label}</span><input class="ui-input" type="password" name=${name} placeholder=${isAdmin ? '请输入密码' : '请输入 API Key'} required></label><button class="ui-btn ui-btn-primary" style="width:100%">${btn}</button></form>
 </div></div>`
   }
 }

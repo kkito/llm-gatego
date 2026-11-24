@@ -34,7 +34,7 @@ export class GwPasswordPage extends GwPage {
     return html`
 ${pageHeader({ eyebrow: 'SECURITY', title: '密码设置', subtitle: '设置或修改管理后台登录密码' })}
 ${this.error ? notice(this.error, 'error') : ''}${this.success ? notice(this.success, 'success') : ''}
-${panel('', '', html`<div class="form-card"><form method="post" action="/api/admin/password" @submit=${this.submit}>
+${panel('', '', html`<div class="form-card"><form @submit=${this.submit}>
   ${this.hasPassword ? html`<div class="form-group"><label class="form-label" for="currentPassword">当前密码</label><input class="form-input" type="password" id="currentPassword" name="currentPassword"></div>` : ''}
   <div class="form-group"><label class="form-label" for="newPassword">新密码</label><input class="form-input" type="password" id="newPassword" name="newPassword"></div>
   <div class="form-group"><label class="form-label" for="confirmPassword">确认新密码</label><input class="form-input" type="password" id="confirmPassword" name="confirmPassword"></div>

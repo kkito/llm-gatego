@@ -40,4 +40,24 @@ describe('router', () => {
     expect(location.pathname).toBe('/admin/model-groups')
     a.remove()
   })
+
+  it('intercepts links inside shadow DOM', () => {
+    class LinkHost extends HTMLElement {
+      constructor() {
+        super()
+        const sr = this.attachShadow({ mode: 'open' })
+        sr.innerHTML = '<a href="/admin/stats">stats</a>'
+      }
+    }
+    if (!customElements.get('router-link-host')) customElements.define('router-link-host', LinkHost)
+    startRouter()
+    const host = document.createElement('router-link-host')
+    document.body.appendChild(host)
+    const a = host.shadowRoot!.querySelector('a')!
+    const event = new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, button: 0 })
+    a.dispatchEvent(event)
+    expect(event.defaultPrevented).toBe(true)
+    expect(location.pathname).toBe('/admin/stats')
+    host.remove()
+  })
 })

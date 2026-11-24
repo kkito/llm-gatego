@@ -1,4 +1,5 @@
 import { html, type TemplateResult } from 'lit'
+import { navigate } from '../../router.js'
 import { GwPage } from '../gw-page.js'
 import { loadData } from '../loaders.js'
 import { formatNumber, formatDuration } from '../../format.js'
@@ -12,6 +13,16 @@ export class GwUserStatsPage extends GwPage {
   data: UserStatsView = {} as UserStatsView
   error = ''
 
+  private submitFilter(e: Event): void {
+    e.preventDefault()
+    const form = e.currentTarget as HTMLFormElement
+    const params = new URLSearchParams()
+    for (const el of Array.from(form.elements) as HTMLInputElement[]) {
+      if (el.name && el.value) params.set(el.name, el.value)
+    }
+    navigate('/user/stats?' + params.toString())
+  }
+
   protected load(): Promise<void> {
     return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
@@ -19,7 +30,7 @@ export class GwUserStatsPage extends GwPage {
   protected renderPage(): TemplateResult {
     const s = this.data
     const pct = s.totalRequests ? (s.successfulRequests / s.totalRequests) * 100 : 0
-    const filter = html`<form method="get" action="/user/stats" class="ui-row"><input class="ui-input" style="width:auto" type="date" name="startDate" value=${s.start}><input class="ui-input" style="width:auto" type="date" name="endDate" value=${s.end}><button class="ui-btn ui-btn-primary">查询</button></form>`
+    const filter = html`<form @submit=${(e: Event) => this.submitFilter(e)} class="ui-row"><input class="ui-input" style="width:auto" type="date" name="startDate" value=${s.start}><input class="ui-input" style="width:auto" type="date" name="endDate" value=${s.end}><button class="ui-btn ui-btn-primary">查询</button></form>`
     if (!s.totalRequests) {
       return html`
 ${pageHeader({ eyebrow: 'Analytics', title: `使用统计 — ${s.userName || ''}`, subtitle: '查看 API 使用情况与统计数据' })}
