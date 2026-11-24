@@ -11,6 +11,14 @@ describe('routeForPath', () => {
   })
 })
 
+async function waitForPage(host: Element, tag: string): Promise<void> {
+  for (let i = 0; i < 50; i++) {
+    if (host.firstElementChild?.tagName.toLowerCase() === tag) return
+    await new Promise(resolve => setTimeout(resolve, 10))
+  }
+  throw new Error(`expected page ${tag}, got ${host.firstElementChild?.tagName.toLowerCase()}`)
+}
+
 describe('GwApp SPA routing', () => {
   beforeEach(() => {
     stopRouter()
@@ -23,15 +31,15 @@ describe('GwApp SPA routing', () => {
     document.body.appendChild(el)
     await el.updateComplete
     const host = el.shadowRoot!.querySelector('.gw-page-host')!
-    expect(host.firstElementChild?.tagName.toLowerCase()).toBe('gw-models-page')
+    await waitForPage(host, 'gw-models-page')
 
     navigate('/admin/users')
     await el.updateComplete
-    expect(host.firstElementChild?.tagName.toLowerCase()).toBe('gw-users-page')
+    await waitForPage(host, 'gw-users-page')
 
     navigate('/admin/models')
     await el.updateComplete
-    expect(host.firstElementChild?.tagName.toLowerCase()).toBe('gw-models-page')
+    await waitForPage(host, 'gw-models-page')
     el.remove()
   })
 })

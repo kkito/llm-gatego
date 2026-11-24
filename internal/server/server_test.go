@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -51,7 +52,7 @@ func TestViewRoutesServeShell(t *testing.T) {
 	for _, p := range []string{"/admin/models", "/admin/stats", "/user/main", "/user/stats", "/admin/login"} {
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, httptest.NewRequest("GET", p, nil))
-		if w.Code != 200 || !strings.Contains(w.Body.String(), "admin.js") {
+		if w.Code != 200 || !strings.Contains(w.Body.String(), "<gw-app>") || !strings.Contains(w.Body.String(), "/assets/") {
 			t.Fatal(p, w.Code, w.Body.String())
 		}
 	}
@@ -71,6 +72,13 @@ func TestLegacyFormAlias(t *testing.T) {
 
 func TestAssetsServed(t *testing.T) {
 	mux := New(&config.ProxyConfig{}, proxy.Dependencies{}, config.ConfigContext{}, Options{})
-	w := httptest.NewRecorder(); mux.ServeHTTP(w, httptest.NewRequest("GET", "/assets/admin.js", nil))
+	shell := httptest.NewRecorder()
+	mux.ServeHTTP(shell, httptest.NewRequest("GET", "/", nil))
+	asset := regexp.MustCompile(`/assets/[^"']+\.js`).FindString(shell.Body.String())
+	if asset == "" {
+		t.Fatalf("no JS asset found in shell: %s", shell.Body.String())
+	}
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest("GET", asset, nil))
 	if w.Code != 200 { t.Fatal(w.Code, w.Body.String()) }
 }

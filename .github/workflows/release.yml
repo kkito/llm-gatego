@@ -40,7 +40,10 @@ jobs:
           node-version: '24'
 
       - name: Install web tools
-        run: npm install -g esbuild@0.28.2 typescript@7.0.2 vitest@5.0.5 happy-dom@21.0.4 lit@3.3.3 vite@7.3.8
+        run: npm install -g typescript@7.0.2 vitest@5.0.5 happy-dom@21.0.4 lit@3.3.3 vite@7.3.8
+
+      - name: Build web assets
+        run: make web-build
 
       - name: Run Go tests
         run: go test ./...
@@ -50,9 +53,6 @@ jobs:
 
       - name: Run web tests
         run: make web-test
-
-      - name: Build web assets
-        run: make web-build
 
       - name: Build release binaries
         shell: bash

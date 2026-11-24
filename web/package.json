@@ -9,7 +9,6 @@
     "lit": "3.3.3"
   },
   "devDependencies": {
-    "esbuild": "0.28.2",
     "vite": "7.3.8",
     "happy-dom": "21.0.4",
     "typescript": "7.0.2",

@@ -18,10 +18,11 @@ required = [
     "llm-gatego-linux-amd64",
     "llm-gatego-darwin-amd64",
     "llm-gatego-darwin-arm64",
-    "NODE_PATH=$(npm root -g) node scripts/build_web.cjs",
+    "make web-build",
+    "make web-typecheck",
     "go test ./...",
-    "NODE_PATH=$(npm root -g) vitest run",
-    "npm install -g esbuild typescript vitest happy-dom",
+    "make web-test",
+    "vite@7.3.8",
     "contents: write",
 ]
 missing = [item for item in required if item not in text]

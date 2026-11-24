@@ -25,15 +25,19 @@ web-dev: web-deps
 	cd web && NODE_PATH=$(NPM_GLOBAL) vite
 
 web-build: web-deps
-	NODE_PATH=$(NPM_GLOBAL) node scripts/build_web.cjs
+	cd web && NODE_PATH=$(NPM_GLOBAL) vite build
+	rm -rf internal/server/dist
+	mkdir -p internal/server/dist
+	cp -R web/dist/. internal/server/dist/
+	touch internal/server/dist/.gitkeep
 
-web-test: web-deps
+web-test: web-build
 	cd web && NODE_PATH=$(NPM_GLOBAL) vitest run
 
 web-typecheck: web-deps
 	cd web && NODE_PATH=$(NPM_GLOBAL) tsc --noEmit
 
-all: test web-test web-typecheck build
+all: web-build test web-typecheck web-test build
 
 clean:
 	rm -rf dist build/web-dist

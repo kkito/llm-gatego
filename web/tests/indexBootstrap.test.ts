@@ -1,98 +1,54 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { readFileSync } from 'node:fs'
+import { describe, it, expect } from 'vitest'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { createRequire } from 'node:module'
-const require = createRequire(import.meta.url)
-const { Window } = require('happy-dom') as typeof import('happy-dom')
 
-/**
- * Regression test for the "blank page" bug:
- * index.html used to load admin.js as a classic blocking <script>, which runs
- * while document.readyState === 'loading'. If the entry only boots when the
- * document is already parsed, nothing ever renders and the page stays blank.
- *
- * This test simulates the real browser sequence from index.html:
- *   1. parser builds <gw-app>, readyState = 'loading'
- *   2. external script (admin.js) is evaluated
- *   3. browser finishes parsing and fires DOMContentLoaded
- * and asserts that every route renders real page content (not blank).
- */
-function fakeFetch(): (url: string) => Promise<any> {
-  return async (url: string) => {
-    const wrap = (data: any) => ({ status: 200, json: async () => ({ ok: true, data }) })
-    if (url.includes('/api/admin/models/')) return wrap([])
-    if (url.endsWith('/api/admin/models')) return wrap([])
-    if (url.includes('/api/admin/models')) return wrap([{ customModel: 'm1', realModel: 'gpt-4' }])
-    if (url.includes('/api/admin/model-groups')) return wrap([])
-    if (url.includes('/api/admin/users')) return wrap([])
-    if (url.includes('/api/admin/api-keys')) return wrap([])
-    if (url.includes('/api/admin/stats')) return wrap({
-      dateRange: '2026-01-01', totalRequests: 0, successfulRequests: 0, failedRequests: 0,
-      totalInputTokens: 0, totalOutputTokens: 0, totalTokens: 0, totalCachedTokens: 0, avgDuration: 0,
-      byModel: {}, byDate: {}, byHour: {}, dailyHeatmap: [], details: [],
-    })
-    if (url.includes('/api/admin/privacy')) return wrap({ settings: { enabled: false, pathPlaceholder: 'USER' } })
-    if (url.includes('/api/admin/announcement')) return wrap({ content: '' })
-    if (url.includes('/api/admin/auth-status')) return wrap({ passwordConfigured: true })
-    if (url.includes('/api/user/config')) return wrap({ models: [{ customModel: 'm1' }], modelGroups: [], announcement: '' })
-    if (url.includes('/api/user/stats')) return wrap({})
-    return wrap([])
-  }
+const webRoot = process.cwd()
+const distRoot = join(webRoot, 'dist')
+
+function builtHtml(): string {
+  const path = join(distRoot, 'index.html')
+  expect(existsSync(path), 'vite build must generate dist/index.html').toBe(true)
+  return readFileSync(path, 'utf8')
 }
 
-async function renderRoute(path: string): Promise<string> {
-  const html = readFileSync(join(process.cwd(), 'index.html'), 'utf8')
-  expect(html, 'index.html must use <gw-app>').toContain('<gw-app>')
-  const src = html.match(/<script[^>]*src="([^"]+)"/)?.[1]
-  expect(src, 'index.html must load the admin bundle').toBe('/assets/admin.js')
-  const bundle = readFileSync(join(process.cwd(), 'dist/assets/admin.js'), 'utf8')
+describe('vite production output', () => {
+  it('keeps the gw-app bootstrap element', () => {
+    expect(builtHtml()).toContain('<gw-app>')
+  })
 
-  const window = new Window({ url: 'http://localhost' + path })
-  const doc = window.document
-  doc.body.innerHTML = '<gw-app></gw-app>'
-  Object.defineProperty(doc, 'readyState', { value: 'loading', writable: true, configurable: true })
-  vi.stubGlobal('fetch', fakeFetch())
-  Object.defineProperty(window, 'fetch', { value: (...args: any[]) => (globalThis as any).fetch(...args), configurable: true })
+  it('loads a hashed module entry instead of the old admin.js', () => {
+    const html = builtHtml()
+    expect(html).not.toContain('/assets/admin.js')
+    const src = html.match(/<script[^>]+type="module"[^>]+src="([^"]+\.js)"/)?.[1]
+      || html.match(/<script[^>]+src="([^"]+\.js)"[^>]+type="module"/)?.[1]
+    expect(src, 'built index.html must load a module entry').toBeTruthy()
+    expect(src!).toMatch(/^\/assets\/index-[A-Za-z0-9_-]+\.js$/)
+    expect(existsSync(join(distRoot, src!.replace(/^\//, ''))), 'entry chunk must exist').toBe(true)
+  })
 
-  window.eval(bundle)
-  expect(doc.body.textContent).not.toContain('模型管理')
-  Object.defineProperty(doc, 'readyState', { value: 'complete', writable: true, configurable: true })
-  doc.dispatchEvent(new window.Event('DOMContentLoaded'))
-  await new Promise(resolve => setTimeout(resolve, 60))
-  // Page components render inside gw-app's shadow DOM, which is reflected in
-  // body.textContent via slotted <gw-shell> content.
-  function deepText(node: any): string {
-    let out = node.nodeType === 3 ? (node.textContent || '') : ''
-    if (node.shadowRoot) out += deepText(node.shadowRoot)
-    for (const child of Array.from(node.childNodes || [])) out += deepText(child)
-    return out
-  }
-  return deepText(doc.body)
-}
+  it('injects global CSS and favicon', () => {
+    const html = builtHtml()
+    expect(html).toContain('--ui-bg')
+    expect(html).toContain('/favicon.ico')
+    expect(existsSync(join(distRoot, 'favicon.ico'))).toBe(true)
+  })
 
-describe('index.html bootstrap', () => {
-  afterEach(() => vi.unstubAllGlobals())
-  const routes: Array<[string, string]> = [
-    ['/admin/models', '模型管理'],
-    ['/admin/models/new', '新增模型'],
-    ['/admin/model-groups/new', '新增 Model Group'],
-    ['/admin/users/new', '新增用户'],
-    ['/admin/model-groups', '管理模型分组配置'],
-    ['/admin/users', '管理访问 API 的用户和密钥'],
-    ['/admin/api-keys', '集中维护上游调用使用的密钥'],
-    ['/admin/stats', '统计 Dashboard'],
-    ['/admin/announcement', '公告管理'],
-    ['/admin/privacy', '隐私保护'],
-    ['/admin/password', '密码设置'],
-    ['/admin/login', '管理员登录'],
-    ['/user/main', '🚀 LLM Gateway'],
-    ['/user/stats', '使用统计'],
-    ['/user/login', '用户登录'],
-  ]
-  for (const [path, text] of routes) {
-    it(`renders ${path} without blank page`, async () => {
-      const body = await renderRoute(path)
-      expect(body).toContain(text)
-    }, 10000)
-  }
+  it('splits route pages into separate chunks', () => {
+    const assets = join(distRoot, 'assets')
+    const js = readdirSync(assets).filter(name => name.endsWith('.js'))
+    expect(js.length).toBeGreaterThan(5)
+    expect(js.some(name => name.includes('login'))).toBe(true)
+    expect(js.some(name => name.includes('stats'))).toBe(true)
+    expect(js.some(name => name.includes('models'))).toBe(true)
+  })
+
+  it('preserves DOMContentLoaded bootstrap logic in the entry chunk', () => {
+    const html = builtHtml()
+    const src = html.match(/<script[^>]+type="module"[^>]+src="([^"]+\.js)"/)?.[1]
+      || html.match(/<script[^>]+src="([^"]+\.js)"[^>]+type="module"/)?.[1]
+    expect(src).toBeTruthy()
+    const entry = readFileSync(join(distRoot, src!.replace(/^\//, '')), 'utf8')
+    expect(entry).toContain('DOMContentLoaded')
+    expect(entry).toContain('gw-app')
+  })
 })

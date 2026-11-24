@@ -8,6 +8,12 @@ const globalCSS = tokensSource.match(/globalCSSString = `([\s\S]*?)`/)?.[1] || '
 export default defineConfig({
   appType: 'spa',
   publicDir: 'static',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    assetsDir: 'assets',
+    target: 'es2020',
+  },
   server: {
     port: 5173,
     proxy: {
@@ -18,12 +24,7 @@ export default defineConfig({
     {
       name: 'gatego-dev-html',
       transformIndexHtml(html) {
-        return html
-          .replace('<!-- GLOBAL_CSS -->', `<style>${globalCSS}</style>`)
-          .replace(
-            '<script defer src="/assets/admin.js"></script>',
-            '<script type="module" src="/src/admin.ts"></script>',
-          )
+        return html.replace('<!-- GLOBAL_CSS -->', `<style>${globalCSS}</style>`)
       },
     },
   ],
