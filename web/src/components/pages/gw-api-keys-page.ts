@@ -16,7 +16,7 @@ export class GwApiKeysPage extends GwPage {
   success = ''
   editing?: EditingKeyView
 
-  private async remove(k: KeyView): Promise<void> {
+  private async deleteItem(k: KeyView): Promise<void> {
     if (!k || !confirm(`确定删除 ${k.name}?`)) return
     try {
       await postAndNavigate(`/api/admin/api-keys/delete/${encodeURIComponent(k.id)}`, {}, currentPath())
@@ -45,7 +45,7 @@ export class GwApiKeysPage extends GwPage {
       <td class="ui-mono">${k.keyHint || (k.key ? '*****' + k.key.slice(-4) : '*****')}</td>
       <td><div class="ui-row">
         <a class="ui-btn ui-btn-sm" href=${`/admin/api-keys/edit/${encodeURIComponent(k.id)}`}>编辑</a>
-        <button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.remove(k)}>删除</button>
+        <button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.deleteItem(k)}>删除</button>
       </div></td>
     </tr>`)
     const form = html`<form @submit=${(e: Event) => this.submit(e)}>

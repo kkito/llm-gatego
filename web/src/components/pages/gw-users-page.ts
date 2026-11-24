@@ -14,7 +14,7 @@ export class GwUsersPage extends GwPage {
   enabled = true
   error = ''
 
-  private async remove(u: UserView): Promise<void> {
+  private async deleteItem(u: UserView): Promise<void> {
     if (!u || !confirm(`确定删除用户 "${u.name}" 吗？`)) return
     try {
       await postAndNavigate(`/api/admin/users/delete/${encodeURIComponent(u.name)}`, {}, currentPath())
@@ -40,7 +40,7 @@ export class GwUsersPage extends GwPage {
       <div class="ui-panel-body">
         <div class="ui-field-hint ui-mono" style="margin-bottom:10px">${u.apikey.slice(0, 8)}…</div>
         <div class="ui-row">${!u.allowedModels || u.allowedModels.length === 0 ? html`<span class="ui-badge">所有模型</span>` : html`${u.allowedModels.slice(0, 3).map(m => html`<span class="ui-badge">${m}</span>`)}${(u.allowedModels?.length || 0) > 3 ? html`<span class="ui-field-hint">等${u.allowedModels!.length - 3}个模型</span>` : ''}`}</div>
-        <div class="ui-row" style="margin-top:14px"><button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.remove(u)}>删除</button></div>
+        <div class="ui-row" style="margin-top:14px"><button class="ui-btn ui-btn-sm ui-btn-danger" @click=${() => this.deleteItem(u)}>删除</button></div>
       </div></article>`)
     const toggle = html`<button class="ui-btn" @click=${() => this.toggle()}>${this.enabled ? '禁用用户认证' : '启用用户认证'}</button>`
     return html`

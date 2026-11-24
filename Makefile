@@ -1,4 +1,4 @@
-.PHONY: build test test-race web-deps web-build web-test all clean
+.PHONY: build test test-race web-deps web-build web-test web-typecheck all clean
 
 VERSION := 1.15.0
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
@@ -25,7 +25,10 @@ web-build: web-deps
 web-test: web-deps
 	cd web && NODE_PATH=$(NPM_GLOBAL) vitest run
 
-all: test web-test build
+web-typecheck: web-deps
+	cd web && NODE_PATH=$(NPM_GLOBAL) tsc --noEmit
+
+all: test web-test web-typecheck build
 
 clean:
 	rm -rf dist build/web-dist

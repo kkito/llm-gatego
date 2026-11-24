@@ -17,7 +17,7 @@ export class GwPage extends LitElement {
     :host{display:block}
     .gw-loading{padding:24px;color:var(--ui-muted)}
   `]
-  static properties = {
+  static properties: Record<string, any> = {
     title: { state: true }, path: { state: true }, nav: { state: true },
     width: { state: true }, loading: { state: true }, error: { state: true },
   }

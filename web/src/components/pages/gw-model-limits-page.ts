@@ -39,23 +39,23 @@ export class GwModelLimitsPage extends GwPage {
     ;(sr.querySelector('#editGroupName') as HTMLInputElement).value = l.groupName
   }
 
-  private async after(): Promise<void> {
+  private async refreshAfterWrite(): Promise<void> {
     this.success = '保存成功'
     await this.load()
   }
   private async add(e: Event): Promise<void> {
     e.preventDefault()
-    try { await submitAndNavigate(e.currentTarget as HTMLFormElement, `/api/admin/models/${encodeURIComponent(this.model)}/limits/add`, currentPath()); await this.after() } catch (err) { this.error = (err as Error).message }
+    try { await submitAndNavigate(e.currentTarget as HTMLFormElement, `/api/admin/models/${encodeURIComponent(this.model)}/limits/add`, currentPath()); await this.refreshAfterWrite() } catch (err) { this.error = (err as Error).message }
   }
   private async edit(e: Event): Promise<void> {
     e.preventDefault()
     const form = e.currentTarget as HTMLFormElement
     const index = formToObject(form).index
-    try { await submitAndNavigate(form, `/api/admin/models/${encodeURIComponent(this.model)}/limits/edit/${index}`, currentPath()); await this.after() } catch (err) { this.error = (err as Error).message }
+    try { await submitAndNavigate(form, `/api/admin/models/${encodeURIComponent(this.model)}/limits/edit/${index}`, currentPath()); await this.refreshAfterWrite() } catch (err) { this.error = (err as Error).message }
   }
-  private async remove(i: number): Promise<void> {
+  private async deleteItem(i: number): Promise<void> {
     if (!confirm('确定删除该规则？')) return
-    try { await postAndNavigate(`/api/admin/models/${encodeURIComponent(this.model)}/limits/delete/${i}`, {}, currentPath()); await this.after() } catch (e) { this.error = (e as Error).message }
+    try { await postAndNavigate(`/api/admin/models/${encodeURIComponent(this.model)}/limits/delete/${i}`, {}, currentPath()); await this.refreshAfterWrite() } catch (e) { this.error = (e as Error).message }
   }
 
   protected load(): Promise<void> {
@@ -64,11 +64,11 @@ export class GwModelLimitsPage extends GwPage {
 
   protected renderPage(): TemplateResult {
     const m = this.model
-    const rows = this.data.map((l, i) => html`<tr><td>${l.type}</td><td>${l.period}</td><td>${l.periodValue}</td><td>${l.type === 'cost' ? l.costMax : l.max}</td><td>${l.groupName || ''}</td><td>${l.enabled ? '启用' : '禁用'}</td><td><div class="actions-cell"><button class="btn btn-small" type="button" @click=${() => this.editLimit(i)}>编辑</button><button class="btn btn-small btn-danger" type="button" @click=${() => this.remove(i)}>删除</button></div></td></tr>`)
+    const rows = this.data.map((l, i) => html`<tr><td>${l.type}</td><td>${l.period}</td><td>${l.periodValue}</td><td>${l.type === 'cost' ? l.costMax : l.max}</td><td>${l.groupName || ''}</td><td>${l.enabled ? '启用' : '禁用'}</td><td><div class="actions-cell"><button class="btn btn-small" type="button" @click=${() => this.editLimit(i)}>编辑</button><button class="btn btn-small btn-danger" type="button" @click=${() => this.deleteItem(i)}>删除</button></div></td></tr>`)
     return html`
 ${pageHeader({ eyebrow: 'MODEL LIMITS', title: `限制规则管理 - ${m}`, subtitle: '设置每分钟/每小时请求数、token 数或费用限制', actions: html`<a class="ui-btn" href="/admin/models">返回模型</a>` })}
 ${this.error ? html`<div class="error-banner">${this.error}</div>` : ''}${this.success ? html`<div class="success-banner">${this.success}</div>` : ''}
-${panel('限制规则', '', html`<div class="limits-card"><h2 class="limits-title">限制规则管理</h2>${this.data.length ? html`<table class="limits-table"><thead><tr><th>类型</th><th>周期</th><th>周期值</th><th>上限</th><th>用户组</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>` : empty('暂无限制规则')}
+${panel('限制规则', '', html`<div class="limits-card"><h2 class="limits-title">限制规则管理</h2>${this.data.length ? html`<table class="limits-table"><thead><tr><th>类型</th><th>周期</th><th>周期值</th><th>上限</th><th>用户组</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>` : empty('暂无限制规则', '')}
 <h3 class="section-title">新增规则</h3><form @submit=${(e: Event) => this.add(e)}><input type="hidden" name="model" value=${m}><div class="form-grid">
   <div class="form-group"><label class="form-label" for="type">类型</label><select class="form-select" id="type" name="type" @change=${() => this.handleTypeChange()}><option value="rpm">请求数/分钟</option><option value="tpm">Token/分钟</option><option value="cost">费用</option></select></div>
   <div class="form-group"><label class="form-label" for="period">周期</label><select class="form-select" id="period" name="period"><option value="minute">分钟</option><option value="hour">小时</option><option value="day">天</option></select></div>
