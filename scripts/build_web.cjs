@@ -5,11 +5,13 @@ const entries = [
   ['web/src/admin.ts', 'web/dist/assets/admin.js'],
 ];
 for (const [entry, out] of entries) {
-  esbuild.buildSync({ entryPoints: [entry], bundle: true, format: 'iife', outfile: out, target: 'es2020' });
+  esbuild.buildSync({ entryPoints: [entry], bundle: true, minify: true, format: 'iife', outfile: out, target: 'es2020' });
 }
 fs.mkdirSync('web/dist', { recursive: true });
 const globalCSS = fs.readFileSync('web/src/styles/tokens.ts', 'utf8').match(/globalCSSString = `([\s\S]*?)`/)[1];
-fs.writeFileSync('web/dist/index.html', fs.readFileSync('web/index.html', 'utf8').replace('<!-- GLOBAL_CSS -->', `<style>${globalCSS}</style>`));
+const minifiedCSS = esbuild.transformSync(globalCSS, { loader: 'css', minify: true }).code;
+const minifyHTML = (html) => html.replace(/<!--[\s\S]*?-->/g, '').replace(/>\s+</g, '><').trim();
+fs.writeFileSync('web/dist/index.html', minifyHTML(fs.readFileSync('web/index.html', 'utf8').replace('<!-- GLOBAL_CSS -->', `<style>${minifiedCSS}</style>`)));
 if (fs.existsSync('web/static/favicon.ico')) fs.copyFileSync('web/static/favicon.ico', 'web/dist/favicon.ico');
 fs.mkdirSync('internal/server/dist/assets', { recursive: true });
 for (const name of fs.readdirSync('web/dist')) {
