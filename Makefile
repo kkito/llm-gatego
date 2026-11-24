@@ -1,4 +1,4 @@
-.PHONY: build test test-race web-deps web-build web-test web-typecheck all clean
+.PHONY: build test test-race web-deps web-dev web-build web-test web-typecheck all clean
 
 VERSION := 1.15.0
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
@@ -19,6 +19,10 @@ NPM_GLOBAL := $(shell npm root -g)
 web-deps:
 	@mkdir -p web/node_modules
 	@if [ ! -e web/node_modules/lit ]; then ln -s $(NPM_GLOBAL)/lit web/node_modules/lit; fi
+	@if [ ! -e web/node_modules/vite ]; then ln -s $(NPM_GLOBAL)/vite web/node_modules/vite; fi
+
+web-dev: web-deps
+	cd web && NODE_PATH=$(NPM_GLOBAL) vite
 
 web-build: web-deps
 	NODE_PATH=$(NPM_GLOBAL) node scripts/build_web.cjs
