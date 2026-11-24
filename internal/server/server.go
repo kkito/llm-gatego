@@ -46,6 +46,16 @@ func New(cfg *config.ProxyConfig, deps proxy.Dependencies, ctx config.ConfigCont
 	if err == nil {
 		mux.Handle("GET /assets/", http.FileServer(http.FS(assets)))
 	}
+	mux.HandleFunc("GET /favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		b, err := fs.ReadFile(distFS, "dist/favicon.ico")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		w.Write(b)
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			http.NotFound(w, r)
