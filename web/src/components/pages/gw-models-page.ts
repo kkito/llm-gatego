@@ -1,4 +1,6 @@
-import { LitElement, html, css, type TemplateResult } from 'lit'
+import { html, css, type TemplateResult } from 'lit'
+import { GwPage } from '../gw-page.js'
+import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, table, uiCSS } from '../ui.js'
 
 function postForm(url: string): void {
@@ -8,7 +10,7 @@ function postForm(url: string): void {
 
 export interface ModelView { customModel: string; realModel: string; desc?: string; hidden?: boolean }
 
-export class GwModelsPage extends LitElement {
+export class GwModelsPage extends GwPage {
   static styles = [uiCSS]
   static properties = { data: { state: true }, error: { state: true } }
   data: ModelView[] = []
@@ -28,7 +30,11 @@ export class GwModelsPage extends LitElement {
     if (confirm(`确定要删除模型 "${model.customModel}" 吗？`)) this.post(`/admin/models/delete/${encodeURIComponent(model.customModel)}`)
   }
 
-  render(): TemplateResult {
+  protected load(): Promise<void> {
+    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+  }
+
+  protected renderPage(): TemplateResult {
     const rows = this.data.map((m, i) => html`<tr style=${m.hidden ? 'opacity:.55' : ''}>
       <td><span class="ui-badge">${i + 1}</span></td>
       <td><strong>${m.customModel}</strong><div class="ui-field-hint ui-mono">→ ${m.realModel}</div></td>

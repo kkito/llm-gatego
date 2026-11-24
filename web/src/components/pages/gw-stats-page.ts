@@ -1,4 +1,6 @@
-import { LitElement, html, css, type TemplateResult } from 'lit'
+import { html, css, type TemplateResult } from 'lit'
+import { GwPage } from '../gw-page.js'
+import { loadData } from '../loaders.js'
 import { formatNumber, formatDuration } from '../../format.js'
 import { pageHeader, panel, table, uiCSS } from '../ui.js'
 
@@ -16,7 +18,7 @@ export interface StatsView {
 
 const colors = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
 
-export class GwStatsPage extends LitElement {
+export class GwStatsPage extends GwPage {
   static styles = [uiCSS, css`.heatmap-tip{position:fixed;z-index:9999;pointer-events:none;background:#101828;color:#fff;font-size:12px;padding:5px 8px;border-radius:6px;white-space:nowrap;display:none;box-shadow:0 6px 18px rgba(16,24,40,.22)}`]
   static properties = { data: { state: true }, error: { state: true } }
   data: StatsView = {} as StatsView
@@ -43,7 +45,11 @@ export class GwStatsPage extends LitElement {
   }
   private hideTip(): void { this.tipVisible = false; this.requestUpdate() }
 
-  render(): TemplateResult {
+  protected load(): Promise<void> {
+    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+  }
+
+  protected renderPage(): TemplateResult {
     const s = this.data
     const pct = s.totalRequests ? (s.successfulRequests / s.totalRequests) * 100 : 0
     const cards: Array<[string, string, string]> = [

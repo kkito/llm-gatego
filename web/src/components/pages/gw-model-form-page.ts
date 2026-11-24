@@ -1,4 +1,6 @@
-import { LitElement, html, type TemplateResult } from 'lit'
+import { html, type TemplateResult } from 'lit'
+import { GwPage } from '../gw-page.js'
+import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
 import '../gw-json-editor.js'
 
@@ -7,7 +9,7 @@ export interface ModelFormView {
 }
 export interface ApiKeyOption { id: string; name: string; keyHint?: string }
 
-export class GwModelFormPage extends LitElement {
+export class GwModelFormPage extends GwPage {
   static styles = [uiCSS]
   static properties = { data: { state: true }, error: { state: true } }
   data: { model?: ModelFormView; keys: Array<ApiKeyOption | string>; ref?: string; error?: string } = { keys: [] }
@@ -71,7 +73,11 @@ export class GwModelFormPage extends LitElement {
     s.style.display = s.style.display === 'none' ? 'block' : 'none'
   }
 
-  render(): TemplateResult {
+  protected load(): Promise<void> {
+    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+  }
+
+  protected renderPage(): TemplateResult {
     const d = this.data || {}
     const model = d.model || {}
     const isEdit = !!d.model

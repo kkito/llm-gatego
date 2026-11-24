@@ -562,14 +562,6 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
   // web/src/styles/tokens-lit.ts
   var globalCSS = r(globalCSSString);
 
-  // web/src/api.ts
-  async function api(path, opts) {
-    const r4 = await fetch(path, opts);
-    const j = await r4.json();
-    if (!j.ok) throw new Error(j.error?.message || "HTTP " + r4.status);
-    return j;
-  }
-
   // web/src/components/gw-shell.ts
   var adminNav = [
     { href: "/admin/models", label: "\u6A21\u578B", icon: "\u25C7" },
@@ -715,6 +707,141 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
     return b2`<label class="ui-field"><span class="ui-field-label">${label}</span>${input}${hint ? b2`<span class="ui-field-hint">${hint}</span>` : ""}</label>`;
   }
 
+  // web/src/components/gw-page.ts
+  var GwPage = class extends i4 {
+    constructor() {
+      super(...arguments);
+      this.title = "";
+      this.path = location.pathname;
+      this.nav = adminNav;
+      this.width = 1180;
+      this.loading = false;
+      this.error = "";
+    }
+    load() {
+      return void 0;
+    }
+    renderPage() {
+      return b2``;
+    }
+    connectedCallback() {
+      super.connectedCallback();
+      void this.load();
+    }
+    updated(changed) {
+      if (changed.has("path")) {
+        this.nav = this.path.startsWith("/user/") ? userNav : adminNav;
+        this.width = this.path.startsWith("/user/") ? 980 : 1180;
+      }
+    }
+    render() {
+      return b2`
+      <gw-shell .title=${this.title} .path=${this.path} .nav=${this.nav} .width=${this.width}>
+        ${this.loading ? b2`<div class="gw-loading">加载中...</div>` : this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : this.renderPage()}
+      </gw-shell>
+    `;
+    }
+  };
+  GwPage.styles = [globalCSS, uiCSS, i`
+    :host{display:block}
+    .gw-loading{padding:24px;color:var(--ui-muted)}
+  `];
+  GwPage.properties = {
+    title: { state: true },
+    path: { state: true },
+    nav: { state: true },
+    width: { state: true },
+    loading: { state: true },
+    error: { state: true }
+  };
+
+  // web/src/api.ts
+  async function api(path, opts) {
+    const r4 = await fetch(path, opts);
+    const j = await r4.json();
+    if (!j.ok) throw new Error(j.error?.message || "HTTP " + r4.status);
+    return j;
+  }
+
+  // web/src/components/loaders.ts
+  var q = (name) => new URLSearchParams(location.search).get(name) || "";
+  var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+  async function loadData(pathname) {
+    if (pathname === "/") return [];
+    if (pathname === "/admin/models") return (await api("/api/admin/models")).data || [];
+    if (pathname === "/admin/model-groups") return (await api("/api/admin/model-groups")).data || [];
+    if (pathname === "/admin/users") return (await api("/api/admin/users")).data || [];
+    if (pathname === "/admin/api-keys") return (await api("/api/admin/api-keys")).data || [];
+    if (pathname === "/admin/privacy") return (await api("/api/admin/privacy")).data?.settings || { enabled: false, stripUserField: false, sanitizeFilePaths: false, whitelistFilter: false, pathPlaceholder: "USER" };
+    if (pathname === "/admin/announcement") return (await api("/api/admin/announcement")).data?.content || "";
+    if (pathname === "/admin/models/new") return (await api("/api/admin/api-keys")).data || [];
+    if (pathname === "/admin/model-groups/new") return (await api("/api/admin/models")).data || [];
+    if (pathname === "/admin/users/new") return (await api("/api/admin/models")).data || [];
+    if (pathname === "/admin/stats") {
+      const search = location.search;
+      const d3 = (await api("/api/admin/stats" + search)).data || {};
+      return {
+        startDate: q("startDate") || today(),
+        endDate: q("endDate") || q("startDate") || today(),
+        dateRange: d3.dateRange || "",
+        userName: q("userName"),
+        model: q("model"),
+        totalRequests: d3.totalRequests || 0,
+        successfulRequests: d3.successfulRequests || 0,
+        failedRequests: d3.failedRequests || 0,
+        totalInputTokens: d3.totalInputTokens || 0,
+        totalOutputTokens: d3.totalOutputTokens || 0,
+        totalTokens: d3.totalTokens || 0,
+        totalCachedTokens: d3.totalCachedTokens || 0,
+        avgDuration: d3.avgDuration || 0,
+        byModel: d3.byModel || {},
+        byDate: d3.byDate || {},
+        byHour: d3.byHour || {},
+        dailyHeatmap: d3.dailyHeatmap || [],
+        heatmapStart: d3.heatmapStart || "",
+        heatmapEnd: d3.heatmapEnd || "",
+        page: d3.page,
+        totalPages: d3.totalPages,
+        details: d3.details || []
+      };
+    }
+    if (pathname === "/admin/login") return !(await api("/api/admin/auth-status")).data?.passwordConfigured;
+    if (pathname === "/user/main") {
+      const d3 = (await api("/api/user/config")).data || {};
+      return { models: (d3.models || []).map((m3) => m3.customModel), modelGroups: (d3.modelGroups || []).map((g2) => g2.name), announcement: d3.announcement, userName: q("userName") };
+    }
+    if (pathname === "/user/stats") {
+      const d3 = (await api("/api/user/stats" + location.search)).data || {};
+      return { userName: q("userName") || "User", start: q("startDate") || today(), end: q("endDate") || today(), totalRequests: d3.total || 0, successfulRequests: d3.successful || 0, totalTokens: d3.totalTokens || 0, avgDuration: d3.avgDuration || 0, byModel: d3.byModel || {}, byDate: d3.byDate || {} };
+    }
+    if (pathname === "/user/login" || pathname === "/admin/password") return void 0;
+    let m2;
+    if (m2 = pathname.match(/^\/admin\/models\/edit\/(.+)$/)) {
+      const models = (await api("/api/admin/models")).data || [];
+      const model = models.find((x2) => x2.customModel === decodeURIComponent(m2[1]));
+      const keys = (await api("/api/admin/api-keys")).data || [];
+      const ref = model?.apiKey?.startsWith("$$") && model.apiKey.endsWith("$$") ? model.apiKey.slice(2, -2) : "";
+      return { model, keys, version: "1.15.0", ref };
+    }
+    if (m2 = pathname.match(/^\/admin\/models\/([^/]+)\/limits$/)) return (await api(`/api/admin/models/${m2[1]}/limits`)).data || [];
+    if (m2 = pathname.match(/^\/admin\/model-groups\/edit\/(.+)$/)) {
+      const groups = (await api("/api/admin/model-groups")).data || [];
+      const g2 = groups.find((x2) => x2.name === decodeURIComponent(m2[1]));
+      return { group: g2, models: (await api("/api/admin/models")).data || [] };
+    }
+    if (m2 = pathname.match(/^\/admin\/users\/edit\/(.+)$/)) {
+      const users = (await api("/api/admin/users")).data || [];
+      const u3 = users.find((x2) => x2.name === decodeURIComponent(m2[1]));
+      return { user: u3, models: ((await api("/api/admin/models")).data || []).map((x2) => x2.customModel) };
+    }
+    if (m2 = pathname.match(/^\/admin\/api-keys\/edit\/(.+)$/)) {
+      const all = (await api("/api/admin/api-keys")).data || [];
+      const k2 = all.find((x2) => x2.id === decodeURIComponent(m2[1]));
+      return { keys: all, error: k2 ? void 0 : "\u672A\u627E\u5230\u8BE5 API Key", edit: k2 ? { id: k2.id, name: k2.name, keyHint: k2.keyHint || "*****" } : void 0 };
+    }
+    return [];
+  }
+
   // web/src/components/pages/gw-models-page.ts
   function postForm(url) {
     const f3 = document.createElement("form");
@@ -723,7 +850,7 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
     document.body.appendChild(f3);
     f3.submit();
   }
-  var GwModelsPage = class extends i4 {
+  var GwModelsPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = [];
@@ -742,7 +869,14 @@ a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
     deleteModel(model) {
       if (confirm(`\u786E\u5B9A\u8981\u5220\u9664\u6A21\u578B "${model.customModel}" \u5417\uFF1F`)) this.post(`/admin/models/delete/${encodeURIComponent(model.customModel)}`);
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const rows = this.data.map((m2, i5) => b2`<tr style=${m2.hidden ? "opacity:.55" : ""}>
       <td><span class="ui-badge">${i5 + 1}</span></td>
       <td><strong>${m2.customModel}</strong><div class="ui-field-hint ui-mono">→ ${m2.realModel}</div></td>
@@ -774,18 +908,25 @@ ${panel("\u6A21\u578B\u5217\u8868", `${this.data.length} \u4E2A\u6A21\u578B`, th
   if (!customElements.get("gw-models-page")) customElements.define("gw-models-page", GwModelsPage);
 
   // web/src/components/pages/gw-groups-page.ts
-  var GwGroupsPage = class extends i4 {
+  var GwGroupsPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = [];
       this.error = "";
       this.success = "";
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const cards = this.data.map((g2) => b2`<article class="ui-panel" style="margin:0">
       <div class="ui-panel-head"><div><h3 class="ui-panel-title">${g2.name}</h3><p class="ui-panel-sub">${g2.models.length} 个模型</p></div><a class="ui-btn ui-btn-sm" href=${`/admin/model-groups/edit/${encodeURIComponent(g2.name)}`}>管理模型</a></div>
       <div class="ui-panel-body"><p class="ui-field-hint">${g2.desc || "\u2014"}</p><div class="ui-row" style="margin:10px 0 14px">${g2.models.slice(0, 5).map((m2) => b2`<a class="ui-badge" href=${`/admin/models/edit/${encodeURIComponent(m2)}`}>${m2}</a>`)}${g2.models.length > 5 ? b2`<span class="ui-field-hint">+${g2.models.length - 5}</span>` : ""}</div>
-      <form method="POST" action=${`/admin/model-groups/delete/${encodeURIComponent(g2.name)}`}><button class="ui-btn ui-btn-sm ui-btn-danger">删除分组</button></form></div></article>`);
+      <form method="post" action=${`/admin/model-groups/delete/${encodeURIComponent(g2.name)}`}><button class="ui-btn ui-btn-sm ui-btn-danger">删除分组</button></form></div></article>`);
       return b2`
 ${pageHeader({ eyebrow: "Routing", title: "\u6A21\u578B\u5206\u7EC4", subtitle: "\u7BA1\u7406\u6A21\u578B\u5206\u7EC4\u914D\u7F6E", actions: b2`<a class="ui-btn" href="/admin/models">返回模型</a><a class="ui-btn ui-btn-primary" href="/admin/model-groups/new">+ 新建分组</a>` })}
 ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.success, "success") : ""}
@@ -798,20 +939,27 @@ ${this.data.length ? b2`<div class="ui-grid ui-grid-auto">${cards}</div>` : pane
   if (!customElements.get("gw-groups-page")) customElements.define("gw-groups-page", GwGroupsPage);
 
   // web/src/components/pages/gw-users-page.ts
-  var GwUsersPage = class extends i4 {
+  var GwUsersPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = [];
       this.enabled = true;
       this.error = "";
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const cards = this.data.map((u3) => b2`<article class="ui-panel" style="margin:0">
       <div class="ui-panel-head"><div><h3 class="ui-panel-title">${u3.name}</h3><p class="ui-panel-sub">${u3.desc || "\u2014"}</p></div><a class="ui-btn ui-btn-sm" href=${`/admin/users/edit/${encodeURIComponent(u3.name)}`}>编辑</a></div>
       <div class="ui-panel-body">
         <div class="ui-field-hint ui-mono" style="margin-bottom:10px">${u3.apikey.slice(0, 8)}…</div>
         <div class="ui-row">${!u3.allowedModels || u3.allowedModels.length === 0 ? b2`<span class="ui-badge">所有模型</span>` : b2`${u3.allowedModels.slice(0, 3).map((m2) => b2`<span class="ui-badge">${m2}</span>`)}${(u3.allowedModels?.length || 0) > 3 ? b2`<span class="ui-field-hint">等${u3.allowedModels.length - 3}个模型</span>` : ""}`}</div>
-        <div class="ui-row" style="margin-top:14px"><form method="POST" action=${`/api/admin/users/delete/${encodeURIComponent(u3.name)}`}><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form></div>
+        <div class="ui-row" style="margin-top:14px"><form method="post" action=${`/api/admin/users/delete/${encodeURIComponent(u3.name)}`}><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form></div>
       </div></article>`);
       const toggle = b2`<form method="post" action="/admin/users/toggle"><input type="hidden" name="enabled" value=${this.enabled ? "false" : "true"}><button class="ui-btn">${this.enabled ? "\u7981\u7528\u7528\u6237\u8BA4\u8BC1" : "\u542F\u7528\u7528\u6237\u8BA4\u8BC1"}</button></form>`;
       return b2`
@@ -826,25 +974,32 @@ ${this.data.length ? b2`<div class="ui-grid ui-grid-auto">${cards}</div>` : pane
   if (!customElements.get("gw-users-page")) customElements.define("gw-users-page", GwUsersPage);
 
   // web/src/components/pages/gw-api-keys-page.ts
-  var GwApiKeysPage = class extends i4 {
+  var GwApiKeysPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = [];
       this.error = "";
       this.success = "";
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const rows = this.data.map((k2) => b2`<tr>
       <td><strong>${k2.name}</strong><div class="ui-field-hint">${k2.createdAt ? new Date(k2.createdAt).toLocaleDateString("zh-CN") : ""}</div></td>
       <td class="ui-mono">${k2.keyHint || (k2.key ? "*****" + k2.key.slice(-4) : "*****")}</td>
       <td><div class="ui-row">
         <a class="ui-btn ui-btn-sm" href=${`/admin/api-keys/edit/${encodeURIComponent(k2.id)}`}>编辑</a>
-        <form method="POST" action=${`/admin/api-keys/delete/${encodeURIComponent(k2.id)}`} @submit=${(e4) => {
+        <form method="post" action=${`/admin/api-keys/delete/${encodeURIComponent(k2.id)}`} @submit=${(e4) => {
         if (!confirm(`\u786E\u5B9A\u5220\u9664 ${k2.name}?`)) e4.preventDefault();
       }}><button class="ui-btn ui-btn-sm ui-btn-danger">删除</button></form>
       </div></td>
     </tr>`);
-      const form = b2`<form method="POST" action=${this.editing ? "/admin/api-keys/edit/" + encodeURIComponent(this.editing.id) : "/admin/api-keys"}>
+      const form = b2`<form method="post" action=${this.editing ? "/admin/api-keys/edit/" + encodeURIComponent(this.editing.id) : "/admin/api-keys"}>
       ${formField("\u540D\u79F0", b2`<input class="ui-input" name="name" value=${this.editing ? this.editing.name : ""} placeholder="例如：主网关 Key" required>`)}
       ${formField("API Key", b2`<input class="ui-input" name="key" placeholder=${this.editing ? "\u7559\u7A7A\u8868\u793A\u4FDD\u6301\u5F53\u524D\u503C" : "sk-..."} ?required=${!this.editing}>`, this.editing ? `\u5F53\u524D\u503C\uFF1A${this.editing.keyHint}` : "")}
       <div class="ui-row"><button class="ui-btn ui-btn-primary">${this.editing ? "\u4FDD\u5B58\u4FEE\u6539" : "\u6DFB\u52A0\u5BC6\u94A5"}</button><a class="ui-btn" href="/admin/api-keys">取消</a></div>
@@ -864,7 +1019,7 @@ ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.suc
   if (!customElements.get("gw-api-keys-page")) customElements.define("gw-api-keys-page", GwApiKeysPage);
 
   // web/src/components/pages/gw-announcement-page.ts
-  var GwAnnouncementPage = class extends i4 {
+  var GwAnnouncementPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = "";
@@ -872,11 +1027,18 @@ ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.suc
       this.error = "";
       this.success = "";
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       return b2`
 ${pageHeader({ eyebrow: "ANNOUNCEMENT", title: "\u516C\u544A\u7BA1\u7406", subtitle: "\u8BBE\u7F6E\u7528\u6237\u9875\u9762\u663E\u793A\u7684\u516C\u544A\uFF08\u652F\u6301 Markdown\uFF09" })}
 ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form method="POST" action="/admin/announcement"><div class="form-group"><label class="form-label" for="content">公告内容</label><textarea class="form-textarea" id="content" name="content" rows="12">${this.data}</textarea></div><div class="form-group"><label><input type="checkbox" name="enabled" ?checked=${this.enabled}> 启用公告</label></div><div class="form-actions"><button class="btn btn-primary" type="submit">保存公告</button></div></form></div>`)}
+${panel("", "", b2`<div class="form-card"><form method="post" action="/admin/announcement"><div class="form-group"><label class="form-label" for="content">公告内容</label><textarea class="form-textarea" id="content" name="content" rows="12">${this.data}</textarea></div><div class="form-group"><label><input type="checkbox" name="enabled" ?checked=${this.enabled}> 启用公告</label></div><div class="form-actions"><button class="btn btn-primary" type="submit">保存公告</button></div></form></div>`)}
 `;
     }
   };
@@ -885,7 +1047,7 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action="/admin/ann
   if (!customElements.get("gw-announcement-page")) customElements.define("gw-announcement-page", GwAnnouncementPage);
 
   // web/src/components/pages/gw-privacy-page.ts
-  var GwPrivacyPage = class extends i4 {
+  var GwPrivacyPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = { enabled: false, stripUserField: false, sanitizeFilePaths: false, pathPlaceholder: "USER", whitelistFilter: false };
@@ -894,7 +1056,14 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action="/admin/ann
       this.error = "";
       this.success = "";
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const s4 = this.data;
       const checks = [
         ["enabled", "\u542F\u7528\u9690\u79C1\u4FDD\u62A4"],
@@ -905,7 +1074,7 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action="/admin/ann
       return b2`
 ${pageHeader({ eyebrow: "PRIVACY", title: "\u9690\u79C1\u4FDD\u62A4", subtitle: "\u63A7\u5236\u65E5\u5FD7\u4E2D\u7684\u654F\u611F\u4FE1\u606F\u5904\u7406" })}
 ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form id="privacy-form" method="POST" action="/admin/privacy">
+${panel("", "", b2`<div class="form-card"><form id="privacy-form" method="post" action="/admin/privacy">
   ${checks.map(([k2, label]) => b2`<div class="form-group"><label><input type="checkbox" name=${k2} ?checked=${!!s4[k2]}> ${label}</label></div>`)}
   <div class="form-group"><label class="form-label" for="pathPlaceholder">路径占位符</label><input class="form-input" id="pathPlaceholder" name="pathPlaceholder" value=${s4.pathPlaceholder || "USER"}></div>
   <div class="form-group"><label class="form-label">日志记录</label><label><input type="checkbox" name="detailLogEnabled" ?checked=${this.detailLogEnabled} ?disabled=${this.cliDebug}> 记录完整请求/响应日志</label>${this.cliDebug ? b2`<p class="form-hint">命令行启动时使用了 --debug，日志记录设置不可修改</p>` : ""}</div>
@@ -920,7 +1089,7 @@ ${panel("", "", b2`<div class="form-card"><form id="privacy-form" method="POST" 
   if (!customElements.get("gw-privacy-page")) customElements.define("gw-privacy-page", GwPrivacyPage);
 
   // web/src/components/pages/gw-password-page.ts
-  var GwPasswordPage = class extends i4 {
+  var GwPasswordPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.hasPassword = true;
@@ -942,11 +1111,18 @@ ${panel("", "", b2`<div class="form-card"><form id="privacy-form" method="POST" 
       if (j.ok) location.reload();
       else alert(j.error?.message || "\u64CD\u4F5C\u5931\u8D25");
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.hasPassword = !!d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       return b2`
 ${pageHeader({ eyebrow: "SECURITY", title: "\u5BC6\u7801\u8BBE\u7F6E", subtitle: "\u8BBE\u7F6E\u6216\u4FEE\u6539\u7BA1\u7406\u540E\u53F0\u767B\u5F55\u5BC6\u7801" })}
 ${this.error ? notice(this.error, "error") : ""}${this.success ? notice(this.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form method="POST" action="/api/admin/password" @submit=${this.submit}>
+${panel("", "", b2`<div class="form-card"><form method="post" action="/api/admin/password" @submit=${this.submit}>
   ${this.hasPassword ? b2`<div class="form-group"><label class="form-label" for="currentPassword">当前密码</label><input class="form-input" type="password" id="currentPassword" name="currentPassword"></div>` : ""}
   <div class="form-group"><label class="form-label" for="newPassword">新密码</label><input class="form-input" type="password" id="newPassword" name="newPassword"></div>
   <div class="form-group"><label class="form-label" for="confirmPassword">确认新密码</label><input class="form-input" type="password" id="confirmPassword" name="confirmPassword"></div>
@@ -1021,7 +1197,7 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action="/api/admin
   if (!customElements.get("gw-json-editor")) customElements.define("gw-json-editor", GwJsonEditor);
 
   // web/src/components/pages/gw-model-form-page.ts
-  var GwModelFormPage = class extends i4 {
+  var GwModelFormPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = { keys: [] };
@@ -1098,7 +1274,14 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action="/api/admin
       const s4 = this.shadowRoot.querySelector("#rawResponseSection");
       s4.style.display = s4.style.display === "none" ? "block" : "none";
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const d3 = this.data || {};
       const model = d3.model || {};
       const isEdit = !!d3.model;
@@ -1141,7 +1324,7 @@ ${testHtml}
   if (!customElements.get("gw-model-form-page")) customElements.define("gw-model-form-page", GwModelFormPage);
 
   // web/src/components/pages/gw-group-form-page.ts
-  var GwGroupFormPage = class extends i4 {
+  var GwGroupFormPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = { models: [] };
@@ -1168,7 +1351,14 @@ ${testHtml}
       this.sync();
       this.requestUpdate();
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const group = this.data.group || {};
       const isEdit = !!group.name;
       const title = isEdit ? `\u7F16\u8F91 Model Group - ${group.name}` : "\u65B0\u589E Model Group";
@@ -1178,7 +1368,7 @@ ${testHtml}
       return b2`
 ${pageHeader({ eyebrow: "MODEL GROUP", title, subtitle: "\u6A21\u578B\u7EC4\u53EF\u4F5C\u4E3A API model \u4F7F\u7528\uFF0C\u6309\u987A\u5E8F\u9009\u62E9\u591A\u4E2A\u6A21\u578B\u5B9E\u73B0 fallback", actions: b2`<a class="ui-btn" href="/admin/model-groups">返回模型组</a>` })}
 ${err ? notice(err, "error") : ""}${this.data.success ? notice(this.data.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form method="POST" action=${isEdit ? `/admin/model-groups/edit/${encodeURIComponent(group.name)}` : "/admin/model-groups/add"}>
+${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? `/admin/model-groups/edit/${encodeURIComponent(group.name)}` : "/admin/model-groups/add"}>
   <input type="hidden" name="originalName" value=${group.name || ""}>
   <div class="form-group"><label class="form-label" for="name">组名</label><input class="form-input" id="name" name="name" value=${group.name || ""} placeholder="例如：my-group" required></div>
   <div class="form-group"><label class="form-label" for="desc">描述</label><input class="form-input" id="desc" name="desc" value=${group.desc || ""} placeholder="可选"></div>
@@ -1199,13 +1389,20 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action=${isEdit ? 
   if (!customElements.get("gw-group-form-page")) customElements.define("gw-group-form-page", GwGroupFormPage);
 
   // web/src/components/pages/gw-user-form-page.ts
-  var GwUserFormPage = class extends i4 {
+  var GwUserFormPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = { models: [] };
       this.error = "";
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const user = this.data.user || {};
       const isEdit = !!user.name;
       const title = isEdit ? "\u7F16\u8F91\u7528\u6237" : "\u65B0\u589E\u7528\u6237";
@@ -1215,7 +1412,7 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action=${isEdit ? 
       return b2`
 ${pageHeader({ eyebrow: "USER", title, subtitle: isEdit ? `\u7528\u6237\uFF1A${user.name || ""}` : "\u521B\u5EFA\u7528\u6237\u5E76\u5206\u914D\u7528\u6237\u7EC4", actions: b2`<a class="ui-btn" href="/admin/users">返回用户列表</a>` })}
 ${err ? notice(err, "error") : ""}${this.data.success ? notice(this.data.success, "success") : ""}
-${panel("", "", b2`<div class="form-card"><form method="POST" action=${isEdit ? `/admin/users/edit/${encodeURIComponent(user.name)}` : "/admin/users/add"}>
+${panel("", "", b2`<div class="form-card"><form method="post" action=${isEdit ? `/admin/users/edit/${encodeURIComponent(user.name)}` : "/admin/users/add"}>
   <div class="form-group"><label class="form-label" for="name">用户名</label><input class="form-input" id="name" name="name" value=${user.name || ""} ?readonly=${isEdit}></div>
   <div class="form-group"><label class="form-label" for="description">描述</label><input class="form-input" id="description" name="description" value=${user.description || ""}></div>
   <div class="form-group"><label class="form-label" for="apiKey">API Key</label><input class="form-input" id="apiKey" name="apiKey" value=${user.apikey || user.apiKey || ""} placeholder="留空自动生成"></div>
@@ -1230,7 +1427,7 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action=${isEdit ? 
   if (!customElements.get("gw-user-form-page")) customElements.define("gw-user-form-page", GwUserFormPage);
 
   // web/src/components/pages/gw-model-limits-page.ts
-  var GwModelLimitsPage = class extends i4 {
+  var GwModelLimitsPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.model = "";
@@ -1259,14 +1456,21 @@ ${panel("", "", b2`<div class="form-card"><form method="POST" action=${isEdit ? 
       sr.querySelector("#editCostMax").value = String(l3.costMax);
       sr.querySelector("#editGroupName").value = l3.groupName;
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const m2 = this.model;
-      const rows = this.data.map((l3, i5) => b2`<tr><td>${l3.type}</td><td>${l3.period}</td><td>${l3.periodValue}</td><td>${l3.type === "cost" ? l3.costMax : l3.max}</td><td>${l3.groupName || ""}</td><td>${l3.enabled ? "\u542F\u7528" : "\u7981\u7528"}</td><td><div class="actions-cell"><button class="btn btn-small" type="button" @click=${() => this.editLimit(i5)}>编辑</button><form method="POST" action=${`/api/admin/models/${encodeURIComponent(m2)}/limits/delete/${i5}`} style="display:inline"><button class="btn btn-small btn-danger" type="submit">删除</button></form></div></td></tr>`);
+      const rows = this.data.map((l3, i5) => b2`<tr><td>${l3.type}</td><td>${l3.period}</td><td>${l3.periodValue}</td><td>${l3.type === "cost" ? l3.costMax : l3.max}</td><td>${l3.groupName || ""}</td><td>${l3.enabled ? "\u542F\u7528" : "\u7981\u7528"}</td><td><div class="actions-cell"><button class="btn btn-small" type="button" @click=${() => this.editLimit(i5)}>编辑</button><form method="post" action=${`/api/admin/models/${encodeURIComponent(m2)}/limits/delete/${i5}`} style="display:inline"><button class="btn btn-small btn-danger" type="submit">删除</button></form></div></td></tr>`);
       return b2`
 ${pageHeader({ eyebrow: "MODEL LIMITS", title: `\u9650\u5236\u89C4\u5219\u7BA1\u7406 - ${m2}`, subtitle: "\u8BBE\u7F6E\u6BCF\u5206\u949F/\u6BCF\u5C0F\u65F6\u8BF7\u6C42\u6570\u3001token \u6570\u6216\u8D39\u7528\u9650\u5236", actions: b2`<a class="ui-btn" href="/admin/models">返回模型</a>` })}
 ${this.error ? b2`<div class="error-banner">${this.error}</div>` : ""}${this.success ? b2`<div class="success-banner">${this.success}</div>` : ""}
 ${panel("\u9650\u5236\u89C4\u5219", "", b2`<div class="limits-card"><h2 class="limits-title">限制规则管理</h2>${this.data.length ? b2`<table class="limits-table"><thead><tr><th>类型</th><th>周期</th><th>周期值</th><th>上限</th><th>用户组</th><th>状态</th><th>操作</th></tr></thead><tbody>${rows}</tbody></table>` : empty("\u6682\u65E0\u9650\u5236\u89C4\u5219")}
-<h3 class="section-title">新增规则</h3><form method="POST" action=${`/api/admin/models/${encodeURIComponent(m2)}/limits/add`}><input type="hidden" name="model" value=${m2}><div class="form-grid">
+<h3 class="section-title">新增规则</h3><form method="post" action=${`/api/admin/models/${encodeURIComponent(m2)}/limits/add`}><input type="hidden" name="model" value=${m2}><div class="form-grid">
   <div class="form-group"><label class="form-label" for="type">类型</label><select class="form-select" id="type" name="type" @change=${() => this.handleTypeChange()}><option value="rpm">请求数/分钟</option><option value="tpm">Token/分钟</option><option value="cost">费用</option></select></div>
   <div class="form-group"><label class="form-label" for="period">周期</label><select class="form-select" id="period" name="period"><option value="minute">分钟</option><option value="hour">小时</option><option value="day">天</option></select></div>
   <div class="form-group"><label class="form-label" for="periodValue">周期值</label><input class="form-input" id="periodValue" name="periodValue" type="number" value="1"></div>
@@ -1275,7 +1479,7 @@ ${panel("\u9650\u5236\u89C4\u5219", "", b2`<div class="limits-card"><h2 class="l
   <div class="form-group"><label class="form-label" for="groupName">用户组</label><input class="form-input" id="groupName" name="groupName" value="default"></div>
   <div class="form-group"><label><input type="checkbox" id="enabled" name="enabled" value="true" checked> 启用</label></div>
 </div><div class="form-actions"><button class="btn btn-primary" type="submit">添加规则</button></div></form>
-<h3 class="section-title">修改规则</h3><form id="editForm" method="POST" action=""><div class="form-grid">
+<h3 class="section-title">修改规则</h3><form id="editForm" method="post" action=""><div class="form-grid">
   <div class="form-group"><label class="form-label">索引</label><input class="form-input" id="editIndex" name="index" type="number" readonly></div>
   <div class="form-group"><label class="form-label">类型</label><select class="form-select" id="editType" name="type"><option value="rpm">rpm</option><option value="tpm">tpm</option><option value="cost">cost</option></select></div>
   <div class="form-group"><label class="form-label">周期</label><select class="form-select" id="editPeriod" name="period"><option value="minute">minute</option><option value="hour">hour</option><option value="day">day</option></select></div>
@@ -1304,7 +1508,7 @@ ${panel("\u9650\u5236\u89C4\u5219", "", b2`<div class="limits-card"><h2 class="l
 
   // web/src/components/pages/gw-stats-page.ts
   var colors = ["#ebedf0", "#9be9a8", "#40c463", "#30a14e", "#216e39"];
-  var GwStatsPage = class extends i4 {
+  var GwStatsPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = {};
@@ -1334,7 +1538,14 @@ ${panel("\u9650\u5236\u89C4\u5219", "", b2`<div class="limits-card"><h2 class="l
       this.tipVisible = false;
       this.requestUpdate();
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const s4 = this.data;
       const pct = s4.totalRequests ? s4.successfulRequests / s4.totalRequests * 100 : 0;
       const cards = [
@@ -1389,7 +1600,7 @@ ${(s4.details || []).length ? b2`<div class="pagination">${panel("\u6700\u8FD1\u
   if (!customElements.get("gw-stats-page")) customElements.define("gw-stats-page", GwStatsPage);
 
   // web/src/components/pages/gw-user-home-page.ts
-  var GwUserHomePage = class extends i4 {
+  var GwUserHomePage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = { models: [], modelGroups: [] };
@@ -1407,7 +1618,14 @@ ${(s4.details || []).length ? b2`<div class="pagination">${panel("\u6700\u8FD1\u
         this.requestUpdate();
       }, 1500);
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const p3 = this.data || { models: [], modelGroups: [] };
       const models = p3.models || [];
       const groups = p3.modelGroups || [];
@@ -1430,13 +1648,20 @@ ${panel("\u53EF\u7528\u6A21\u578B", `${models.length} \u4E2A\u6A21\u578B / ${gro
   if (!customElements.get("gw-user-home-page")) customElements.define("gw-user-home-page", GwUserHomePage);
 
   // web/src/components/pages/gw-user-stats-page.ts
-  var GwUserStatsPage = class extends i4 {
+  var GwUserStatsPage = class extends GwPage {
     constructor() {
       super(...arguments);
       this.data = {};
       this.error = "";
     }
-    render() {
+    load() {
+      return loadData(this.path).then((d3) => {
+        this.data = d3;
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    renderPage() {
       const s4 = this.data;
       const pct = s4.totalRequests ? s4.successfulRequests / s4.totalRequests * 100 : 0;
       const filter = b2`<form method="get" action="/user/stats" class="ui-row"><input class="ui-input" style="width:auto" type="date" name="startDate" value=${s4.start}><input class="ui-input" style="width:auto" type="date" name="endDate" value=${s4.end}><button class="ui-btn ui-btn-primary">查询</button></form>`;
@@ -1466,6 +1691,26 @@ ${panel("Token \u7528\u91CF\u660E\u7EC6", "", table(["\u6A21\u578B", "\u8BF7\u6C
       super(...arguments);
       this.mode = "admin-login";
       this.error = "";
+      this.path = location.pathname;
+    }
+    connectedCallback() {
+      super.connectedCallback();
+      this.loadMode();
+    }
+    loadMode() {
+      if (this.path !== "/admin/login") {
+        if (this.path === "/user/login") this.mode = "user-login";
+        return;
+      }
+      void api("/api/admin/auth-status").then((r4) => {
+        this.mode = r4.data?.passwordConfigured ? "admin-login" : "admin-setup";
+      }).catch((e4) => {
+        this.error = e4.message;
+      });
+    }
+    updated(changed) {
+      if (!changed.has("path")) return;
+      this.loadMode();
     }
     render() {
       const setup = this.mode === "admin-setup";
@@ -1479,7 +1724,7 @@ ${panel("Token \u7528\u91CF\u660E\u7EC6", "", table(["\u6A21\u578B", "\u8BF7\u6C
       return b2`<div class="ui-login-wrap"><div class="ui-login-card"><div class="ui-login-mark">L</div><h1 class="ui-login-title">${heading}</h1>
 <p class="ui-login-sub">${sub}</p>
 ${this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : ""}
-<form method="POST" action=${action}><label class="ui-field"><span class="ui-field-label">${label}</span><input class="ui-input" type="password" name=${name} placeholder=${isAdmin ? "\u8BF7\u8F93\u5165\u5BC6\u7801" : "\u8BF7\u8F93\u5165 API Key"} required></label><button class="ui-btn ui-btn-primary" style="width:100%">${btn}</button></form>
+<form method="post" action=${action}><label class="ui-field"><span class="ui-field-label">${label}</span><input class="ui-input" type="password" name=${name} placeholder=${isAdmin ? "\u8BF7\u8F93\u5165\u5BC6\u7801" : "\u8BF7\u8F93\u5165 API Key"} required></label><button class="ui-btn ui-btn-primary" style="width:100%">${btn}</button></form>
 </div></div>`;
     }
   };
@@ -1490,116 +1735,37 @@ ${this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : 
   .ui-login-mark{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--ui-accent);color:#fff;font-weight:800;margin-bottom:16px}
   .ui-login-title{font-size:22px;margin:0 0 6px}.ui-login-sub{margin:0 0 22px;color:var(--ui-muted);font-size:13px}
   `];
-  GwLoginPage.properties = { error: { state: true }, mode: { state: true } };
+  GwLoginPage.properties = { error: { state: true }, mode: { state: true }, path: { state: true } };
   if (!customElements.get("gw-login-page")) customElements.define("gw-login-page", GwLoginPage);
 
   // web/src/components/gw-app.ts
-  function routeForPath(pathname) {
-    if (pathname === "/") return "gw-models-page";
-    if (/^\/admin\/models\/edit\//.test(pathname)) return "gw-model-form-page";
-    if (/^\/admin\/models\/[^/]+\/limits$/.test(pathname)) return "gw-model-limits-page";
-    if (pathname === "/admin/models/new") return "gw-model-form-page";
-    if (pathname === "/admin/model-groups/new" || /^\/admin\/model-groups\/edit\//.test(pathname)) return "gw-group-form-page";
-    if (pathname === "/admin/users/new" || /^\/admin\/users\/edit\//.test(pathname)) return "gw-user-form-page";
-    if (/^\/admin\/api-keys\/edit\//.test(pathname)) return "gw-api-keys-page";
-    const map = {
-      "/admin/models": "gw-models-page",
-      "/admin/model-groups": "gw-groups-page",
-      "/admin/users": "gw-users-page",
-      "/admin/api-keys": "gw-api-keys-page",
-      "/admin/password": "gw-password-page",
-      "/admin/privacy": "gw-privacy-page",
-      "/admin/announcement": "gw-announcement-page",
-      "/admin/stats": "gw-stats-page",
-      "/admin/login": "gw-login-page",
-      "/user/login": "gw-login-page",
-      "/user/main": "gw-user-home-page",
-      "/user/stats": "gw-user-stats-page"
-    };
-    return map[pathname] || "gw-models-page";
-  }
-  var q = (name) => new URLSearchParams(location.search).get(name) || "";
-  var today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-  async function loadPageData(pathname) {
-    if (pathname === "/") return [];
-    if (pathname === "/admin/models") return (await api("/api/admin/models")).data || [];
-    if (pathname === "/admin/model-groups") return (await api("/api/admin/model-groups")).data || [];
-    if (pathname === "/admin/users") return (await api("/api/admin/users")).data || [];
-    if (pathname === "/admin/api-keys") return (await api("/api/admin/api-keys")).data || [];
-    if (pathname === "/admin/privacy") return (await api("/api/admin/privacy")).data?.settings || { enabled: false, stripUserField: false, sanitizeFilePaths: false, whitelistFilter: false, pathPlaceholder: "USER" };
-    if (pathname === "/admin/announcement") return (await api("/api/admin/announcement")).data?.content || "";
-    if (pathname === "/admin/models/new") return (await api("/api/admin/api-keys")).data || [];
-    if (pathname === "/admin/model-groups/new") return (await api("/api/admin/models")).data || [];
-    if (pathname === "/admin/users/new") return (await api("/api/admin/models")).data || [];
-    if (pathname === "/admin/stats") {
-      const search = location.search;
-      const d3 = (await api("/api/admin/stats" + search)).data || {};
-      return {
-        startDate: q("startDate") || today(),
-        endDate: q("endDate") || q("startDate") || today(),
-        dateRange: d3.dateRange || "",
-        userName: q("userName"),
-        model: q("model"),
-        totalRequests: d3.totalRequests || 0,
-        successfulRequests: d3.successfulRequests || 0,
-        failedRequests: d3.failedRequests || 0,
-        totalInputTokens: d3.totalInputTokens || 0,
-        totalOutputTokens: d3.totalOutputTokens || 0,
-        totalTokens: d3.totalTokens || 0,
-        totalCachedTokens: d3.totalCachedTokens || 0,
-        avgDuration: d3.avgDuration || 0,
-        byModel: d3.byModel || {},
-        byDate: d3.byDate || {},
-        byHour: d3.byHour || {},
-        dailyHeatmap: d3.dailyHeatmap || [],
-        heatmapStart: d3.heatmapStart || "",
-        heatmapEnd: d3.heatmapEnd || "",
-        page: d3.page,
-        totalPages: d3.totalPages,
-        details: d3.details || []
-      };
-    }
-    if (pathname === "/admin/login") return !(await api("/api/admin/auth-status")).data?.passwordConfigured;
-    if (pathname === "/user/main") {
-      const d3 = (await api("/api/user/config")).data || {};
-      return { models: (d3.models || []).map((m3) => m3.customModel), modelGroups: (d3.modelGroups || []).map((g2) => g2.name), announcement: d3.announcement, userName: q("userName") };
-    }
-    if (pathname === "/user/stats") {
-      const d3 = (await api("/api/user/stats" + location.search)).data || {};
-      return { userName: q("userName") || "User", start: q("startDate") || today(), end: q("endDate") || today(), totalRequests: d3.total || 0, successfulRequests: d3.successful || 0, totalTokens: d3.totalTokens || 0, avgDuration: d3.avgDuration || 0, byModel: d3.byModel || {}, byDate: d3.byDate || {} };
-    }
-    if (pathname === "/user/login" || pathname === "/admin/password") return void 0;
-    let m2;
-    if (m2 = pathname.match(/^\/admin\/models\/edit\/(.+)$/)) {
-      const models = (await api("/api/admin/models")).data || [];
-      const model = models.find((x2) => x2.customModel === decodeURIComponent(m2[1]));
-      const keys = (await api("/api/admin/api-keys")).data || [];
-      const ref = model?.apiKey?.startsWith("$$") && model.apiKey.endsWith("$$") ? model.apiKey.slice(2, -2) : "";
-      return { model, keys, version: "1.15.0", ref };
-    }
-    if (m2 = pathname.match(/^\/admin\/models\/([^/]+)\/limits$/)) return (await api(`/api/admin/models/${m2[1]}/limits`)).data || [];
-    if (m2 = pathname.match(/^\/admin\/model-groups\/edit\/(.+)$/)) {
-      const groups = (await api("/api/admin/model-groups")).data || [];
-      const g2 = groups.find((x2) => x2.name === decodeURIComponent(m2[1]));
-      return { group: g2, models: (await api("/api/admin/models")).data || [] };
-    }
-    if (m2 = pathname.match(/^\/admin\/users\/edit\/(.+)$/)) {
-      const users = (await api("/api/admin/users")).data || [];
-      const u3 = users.find((x2) => x2.name === decodeURIComponent(m2[1]));
-      return { user: u3, models: ((await api("/api/admin/models")).data || []).map((x2) => x2.customModel) };
-    }
-    if (m2 = pathname.match(/^\/admin\/api-keys\/edit\/(.+)$/)) {
-      const all = (await api("/api/admin/api-keys")).data || [];
-      const k2 = all.find((x2) => x2.id === decodeURIComponent(m2[1]));
-      return { keys: all, error: k2 ? void 0 : "\u672A\u627E\u5230\u8BE5 API Key", edit: k2 ? { id: k2.id, name: k2.name, keyHint: k2.keyHint || "*****" } : void 0 };
-    }
-    return [];
+  var routes = [
+    { pattern: /^\/$/, page: "gw-models-page", title: "\u6A21\u578B\u7BA1\u7406" },
+    { pattern: /^\/admin\/models\/edit\//, page: "gw-model-form-page", title: "\u7F16\u8F91\u6A21\u578B" },
+    { pattern: /^\/admin\/models\/[^/]+\/limits$/, page: "gw-model-limits-page", title: "\u6A21\u578B\u9650\u5236" },
+    { pattern: /^\/admin\/models\/new$/, page: "gw-model-form-page", title: "\u65B0\u589E\u6A21\u578B" },
+    { pattern: /^\/admin\/model-groups\/(?:new|edit\/.*)$/, page: "gw-group-form-page", title: "\u6A21\u578B\u5206\u7EC4" },
+    { pattern: /^\/admin\/users\/(?:new|edit\/.*)$/, page: "gw-user-form-page", title: "\u7528\u6237" },
+    { pattern: /^\/admin\/api-keys\/edit\//, page: "gw-api-keys-page", title: "API Keys" },
+    { pattern: /^\/admin\/models$/, page: "gw-models-page", title: "\u6A21\u578B\u7BA1\u7406" },
+    { pattern: /^\/admin\/model-groups$/, page: "gw-groups-page", title: "\u6A21\u578B\u5206\u7EC4" },
+    { pattern: /^\/admin\/users$/, page: "gw-users-page", title: "\u7528\u6237\u7BA1\u7406" },
+    { pattern: /^\/admin\/api-keys$/, page: "gw-api-keys-page", title: "API Keys" },
+    { pattern: /^\/admin\/password$/, page: "gw-password-page", title: "\u5BC6\u7801\u8BBE\u7F6E" },
+    { pattern: /^\/admin\/privacy$/, page: "gw-privacy-page", title: "\u9690\u79C1\u4FDD\u62A4" },
+    { pattern: /^\/admin\/announcement$/, page: "gw-announcement-page", title: "\u516C\u544A\u7BA1\u7406" },
+    { pattern: /^\/admin\/stats$/, page: "gw-stats-page", title: "\u7EDF\u8BA1 Dashboard" },
+    { pattern: /^\/admin\/login$/, page: "gw-login-page" },
+    { pattern: /^\/user\/login$/, page: "gw-login-page" },
+    { pattern: /^\/user\/main$/, page: "gw-user-home-page", title: "\u63A7\u5236\u53F0" },
+    { pattern: /^\/user\/stats$/, page: "gw-user-stats-page", title: "\u4F7F\u7528\u7EDF\u8BA1" }
+  ];
+  function matchRoute(pathname) {
+    return routes.find((r4) => r4.pattern.test(pathname));
   }
   var GwApp = class extends i4 {
     constructor() {
       super(...arguments);
-      this.data = [];
-      this.error = "";
       this.path = location.pathname;
     }
     connectedCallback() {
@@ -1608,57 +1774,30 @@ ${this.error ? b2`<div class="ui-notice ui-notice-error">${this.error}</div>` : 
         location.replace("/admin/models");
         return;
       }
-      this.load();
-    }
-    async load() {
-      try {
-        this.data = await loadPageData(this.path);
-      } catch (e4) {
-        this.error = e4.message;
-      }
     }
     updated() {
       const host = this.shadowRoot?.querySelector(".gw-page-host");
       if (!host) return;
-      const tag = routeForPath(this.path);
-      const isLogin = this.path === "/admin/login" || this.path === "/user/login";
-      let shell = host.firstElementChild;
-      if (!shell || shell.tagName.toLowerCase() !== (isLogin ? tag : "gw-shell")) {
+      const route = matchRoute(this.path);
+      if (!route) return;
+      let page = host.firstElementChild;
+      if (!page || page.tagName.toLowerCase() !== route.page) {
         host.innerHTML = "";
-        if (isLogin) {
-          shell = document.createElement(tag);
-        } else {
-          shell = document.createElement("gw-shell");
-          const page2 = document.createElement(tag);
-          shell.appendChild(page2);
-        }
-        host.appendChild(shell);
+        page = document.createElement(route.page);
+        host.appendChild(page);
       }
-      const page = isLogin ? shell : shell.firstElementChild;
-      page.data = this.data;
-      if ("error" in page) page.error = this.error;
-      if (!isLogin) {
-        const isUser = this.path.startsWith("/user/");
-        shell.title = document.title.split(" \xB7 ")[0];
-        shell.path = this.path;
-        shell.nav = isUser ? userNav : adminNav;
-        shell.width = isUser ? 980 : 1180;
-      }
-      if ("hasPassword" in page && this.path === "/admin/password") page.hasPassword = !!this.data;
-      if ("mode" in page) {
-        page.mode = this.path === "/admin/login" ? this.data ? "admin-setup" : "admin-login" : "user-login";
-      }
-      if ("model" in page) {
-        const m2 = this.path.match(/^\/admin\/models\/([^/]+)\/limits$/);
-        if (m2) page.model = decodeURIComponent(m2[1]);
-      }
+      const m2 = this.path.match(/^\/admin\/models\/([^/]+)\/limits$/);
+      Object.assign(page, {
+        path: this.path,
+        ...route.title ? { title: route.title } : {},
+        ...m2 ? { model: decodeURIComponent(m2[1]) } : {}
+      });
     }
     render() {
       return b2`<div class="gw-page-host"></div>`;
     }
   };
   GwApp.styles = i`${globalCSS}:host{display:block}`;
-  GwApp.properties = { data: { state: true }, error: { state: true } };
   if (!customElements.get("gw-app")) customElements.define("gw-app", GwApp);
 
   // web/src/admin.ts

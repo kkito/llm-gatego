@@ -1,16 +1,22 @@
-import { LitElement, html, type TemplateResult } from 'lit'
+import { html, type TemplateResult } from 'lit'
+import { GwPage } from '../gw-page.js'
+import { loadData } from '../loaders.js'
 import { formatNumber, formatDuration } from '../../format.js'
 import { empty, pageHeader, panel, table, uiCSS } from '../ui.js'
 
 export interface UserStatsView { userName: string; start: string; end: string; totalRequests: number; successfulRequests: number; totalTokens: number; avgDuration: number; byModel: Record<string, { requests: number; totalTokens: number }>; byDate: Record<string, number> }
 
-export class GwUserStatsPage extends LitElement {
+export class GwUserStatsPage extends GwPage {
   static styles = [uiCSS]
   static properties = { data: { state: true }, error: { state: true } }
   data: UserStatsView = {} as UserStatsView
   error = ''
 
-  render(): TemplateResult {
+  protected load(): Promise<void> {
+    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+  }
+
+  protected renderPage(): TemplateResult {
     const s = this.data
     const pct = s.totalRequests ? (s.successfulRequests / s.totalRequests) * 100 : 0
     const filter = html`<form method="get" action="/user/stats" class="ui-row"><input class="ui-input" style="width:auto" type="date" name="startDate" value=${s.start}><input class="ui-input" style="width:auto" type="date" name="endDate" value=${s.end}><button class="ui-btn ui-btn-primary">查询</button></form>`

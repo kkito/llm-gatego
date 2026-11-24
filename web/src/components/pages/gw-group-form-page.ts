@@ -1,10 +1,12 @@
-import { LitElement, html, type TemplateResult } from 'lit'
+import { html, type TemplateResult } from 'lit'
+import { GwPage } from '../gw-page.js'
+import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
 
 export interface GroupFormData { name?: string; desc?: string; models?: string[] }
 export interface ModelOption { customModel: string; desc?: string }
 
-export class GwGroupFormPage extends LitElement {
+export class GwGroupFormPage extends GwPage {
   static styles = [uiCSS]
   static properties = { data: { state: true }, error: { state: true }, selected: { state: true }, filter: { state: true } }
   data: { group?: GroupFormData; models: Array<ModelOption | string>; error?: string; success?: string } = { models: [] }
@@ -32,7 +34,11 @@ export class GwGroupFormPage extends LitElement {
     this.requestUpdate()
   }
 
-  render(): TemplateResult {
+  protected load(): Promise<void> {
+    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+  }
+
+  protected renderPage(): TemplateResult {
     const group = this.data.group || {}
     const isEdit = !!group.name
     const title = isEdit ? `编辑 Model Group - ${group.name}` : '新增 Model Group'
@@ -42,7 +48,7 @@ export class GwGroupFormPage extends LitElement {
     return html`
 ${pageHeader({ eyebrow: 'MODEL GROUP', title, subtitle: '模型组可作为 API model 使用，按顺序选择多个模型实现 fallback', actions: html`<a class="ui-btn" href="/admin/model-groups">返回模型组</a>` })}
 ${err ? notice(err, 'error') : ''}${this.data.success ? notice(this.data.success, 'success') : ''}
-${panel('', '', html`<div class="form-card"><form method="POST" action=${isEdit ? `/admin/model-groups/edit/${encodeURIComponent(group.name!)}` : '/admin/model-groups/add'}>
+${panel('', '', html`<div class="form-card"><form method="post" action=${isEdit ? `/admin/model-groups/edit/${encodeURIComponent(group.name!)}` : '/admin/model-groups/add'}>
   <input type="hidden" name="originalName" value=${group.name || ''}>
   <div class="form-group"><label class="form-label" for="name">组名</label><input class="form-input" id="name" name="name" value=${group.name || ''} placeholder="例如：my-group" required></div>
   <div class="form-group"><label class="form-label" for="desc">描述</label><input class="form-input" id="desc" name="desc" value=${group.desc || ''} placeholder="可选"></div>

@@ -1,7 +1,9 @@
-import { LitElement, html, type TemplateResult } from 'lit'
+import { html, type TemplateResult } from 'lit'
+import { GwPage } from '../gw-page.js'
+import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
 
-export class GwPasswordPage extends LitElement {
+export class GwPasswordPage extends GwPage {
   static styles = [uiCSS]
   static properties = { error: { state: true }, success: { state: true }, hasPassword: { state: true } }
   hasPassword = true
@@ -24,11 +26,15 @@ export class GwPasswordPage extends LitElement {
     else alert(j.error?.message || '操作失败')
   }
 
-  render(): TemplateResult {
+  protected load(): Promise<void> {
+    return loadData(this.path).then(d => { this.hasPassword = !!d }).catch((e: Error) => { this.error = e.message })
+  }
+
+  protected renderPage(): TemplateResult {
     return html`
 ${pageHeader({ eyebrow: 'SECURITY', title: '密码设置', subtitle: '设置或修改管理后台登录密码' })}
 ${this.error ? notice(this.error, 'error') : ''}${this.success ? notice(this.success, 'success') : ''}
-${panel('', '', html`<div class="form-card"><form method="POST" action="/api/admin/password" @submit=${this.submit}>
+${panel('', '', html`<div class="form-card"><form method="post" action="/api/admin/password" @submit=${this.submit}>
   ${this.hasPassword ? html`<div class="form-group"><label class="form-label" for="currentPassword">当前密码</label><input class="form-input" type="password" id="currentPassword" name="currentPassword"></div>` : ''}
   <div class="form-group"><label class="form-label" for="newPassword">新密码</label><input class="form-input" type="password" id="newPassword" name="newPassword"></div>
   <div class="form-group"><label class="form-label" for="confirmPassword">确认新密码</label><input class="form-input" type="password" id="confirmPassword" name="confirmPassword"></div>

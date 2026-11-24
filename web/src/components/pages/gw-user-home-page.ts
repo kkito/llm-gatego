@@ -1,9 +1,11 @@
-import { LitElement, html, type TemplateResult } from 'lit'
+import { html, type TemplateResult } from 'lit'
+import { GwPage } from '../gw-page.js'
+import { loadData } from '../loaders.js'
 import { panel, uiCSS } from '../ui.js'
 
 export interface UserHomeView { models: string[]; modelGroups: string[]; announcement?: string; userName?: string }
 
-export class GwUserHomePage extends LitElement {
+export class GwUserHomePage extends GwPage {
   static styles = [uiCSS]
   static properties = { data: { state: true }, error: { state: true } }
   data: UserHomeView = { models: [], modelGroups: [] }
@@ -19,7 +21,11 @@ export class GwUserHomePage extends LitElement {
     setTimeout(() => { this.copiedId = ''; this.requestUpdate() }, 1500)
   }
 
-  render(): TemplateResult {
+  protected load(): Promise<void> {
+    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+  }
+
+  protected renderPage(): TemplateResult {
     const p = this.data || { models: [], modelGroups: [] }
     const models = p.models || []
     const groups = p.modelGroups || []

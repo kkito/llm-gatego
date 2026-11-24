@@ -1,4 +1,6 @@
-import { LitElement, html, type TemplateResult } from 'lit'
+import { html, type TemplateResult } from 'lit'
+import { GwPage } from '../gw-page.js'
+import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
 
 export interface PrivacyView {
@@ -6,7 +8,7 @@ export interface PrivacyView {
   pathPlaceholder: string; whitelistFilter: boolean
 }
 
-export class GwPrivacyPage extends LitElement {
+export class GwPrivacyPage extends GwPage {
   static styles = [uiCSS]
   static properties = { data: { state: true }, error: { state: true }, success: { state: true }, enabled: { state: true }, detailLogEnabled: { state: true }, cliDebug: { state: true } }
   data: PrivacyView = { enabled: false, stripUserField: false, sanitizeFilePaths: false, pathPlaceholder: 'USER', whitelistFilter: false }
@@ -15,7 +17,11 @@ export class GwPrivacyPage extends LitElement {
   error = ''
   success = ''
 
-  render(): TemplateResult {
+  protected load(): Promise<void> {
+    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+  }
+
+  protected renderPage(): TemplateResult {
     const s = this.data
     const checks: Array<[keyof PrivacyView, string]> = [
       ['enabled', '启用隐私保护'], ['stripUserField', '抹掉 user 字段'],
@@ -24,7 +30,7 @@ export class GwPrivacyPage extends LitElement {
     return html`
 ${pageHeader({ eyebrow: 'PRIVACY', title: '隐私保护', subtitle: '控制日志中的敏感信息处理' })}
 ${this.error ? notice(this.error, 'error') : ''}${this.success ? notice(this.success, 'success') : ''}
-${panel('', '', html`<div class="form-card"><form id="privacy-form" method="POST" action="/admin/privacy">
+${panel('', '', html`<div class="form-card"><form id="privacy-form" method="post" action="/admin/privacy">
   ${checks.map(([k, label]) => html`<div class="form-group"><label><input type="checkbox" name=${k} ?checked=${!!s[k]}> ${label}</label></div>`)}
   <div class="form-group"><label class="form-label" for="pathPlaceholder">路径占位符</label><input class="form-input" id="pathPlaceholder" name="pathPlaceholder" value=${s.pathPlaceholder || 'USER'}></div>
   <div class="form-group"><label class="form-label">日志记录</label><label><input type="checkbox" name="detailLogEnabled" ?checked=${this.detailLogEnabled} ?disabled=${this.cliDebug}> 记录完整请求/响应日志</label>${this.cliDebug ? html`<p class="form-hint">命令行启动时使用了 --debug，日志记录设置不可修改</p>` : ''}</div>
