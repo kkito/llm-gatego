@@ -1,6 +1,25 @@
 import { LitElement, html, css, type TemplateResult } from 'lit'
 import { globalCSS } from '../styles/tokens-lit.js'
 import { api } from '../api.js'
+import { adminNav, userNav } from './gw-shell.js'
+
+// Import for side effects: registers every page custom element.
+import './gw-shell.js'
+import './pages/gw-models-page.js'
+import './pages/gw-groups-page.js'
+import './pages/gw-users-page.js'
+import './pages/gw-api-keys-page.js'
+import './pages/gw-announcement-page.js'
+import './pages/gw-privacy-page.js'
+import './pages/gw-password-page.js'
+import './pages/gw-model-form-page.js'
+import './pages/gw-group-form-page.js'
+import './pages/gw-user-form-page.js'
+import './pages/gw-model-limits-page.js'
+import './pages/gw-stats-page.js'
+import './pages/gw-user-home-page.js'
+import './pages/gw-user-stats-page.js'
+import './pages/gw-login-page.js'
 
 export function routeForPath(pathname: string): string {
   if (pathname === '/') return 'gw-models-page'
@@ -96,6 +115,7 @@ export async function loadPageData(pathname: string): Promise<unknown> {
 
 export class GwApp extends LitElement {
   static styles = css`${globalCSS}:host{display:block}`
+  static properties = { data: { state: true }, error: { state: true } }
 
   data: unknown = []
   error = ''
@@ -112,11 +132,47 @@ export class GwApp extends LitElement {
     catch (e) { this.error = (e as Error).message }
   }
 
-  render(): TemplateResult {
+  protected updated(): void {
+    const host = this.shadowRoot?.querySelector('.gw-page-host')
+    if (!host) return
     const tag = routeForPath(this.path)
-    // Page components are registered in Tasks 4-6; until then the legacy
-    // admin.ts bootstrap remains the active renderer.
-    return html`<div class="gw-app-root" data-tag=${tag}>${this.error ? html`<div class="ui-notice ui-notice-error">${this.error}</div>` : ''}<slot></slot></div>`
+    const isLogin = this.path === '/admin/login' || this.path === '/user/login'
+    let shell = host.firstElementChild as any
+    if (!shell || shell.tagName.toLowerCase() !== (isLogin ? tag : 'gw-shell')) {
+      host.innerHTML = ''
+      if (isLogin) {
+        shell = document.createElement(tag) as any
+      } else {
+        shell = document.createElement('gw-shell') as any
+        const page = document.createElement(tag) as any
+        shell.appendChild(page)
+      }
+      host.appendChild(shell)
+    }
+    const page = isLogin ? shell : shell.firstElementChild as any
+    page.data = this.data
+    if ('error' in page) page.error = this.error
+    if (!isLogin) {
+      const isUser = this.path.startsWith('/user/')
+      shell.title = document.title.split(' · ')[0]
+      shell.path = this.path
+      shell.nav = isUser ? userNav : adminNav
+      shell.width = isUser ? 980 : 1180
+    }
+    if ('hasPassword' in page && this.path === '/admin/password') page.hasPassword = !!this.data
+    if ('mode' in page) {
+      page.mode = this.path === '/admin/login'
+        ? ((this.data as boolean) ? 'admin-setup' : 'admin-login')
+        : 'user-login'
+    }
+    if ('model' in page) {
+      const m = this.path.match(/^\/admin\/models\/([^/]+)\/limits$/)
+      if (m) page.model = decodeURIComponent(m[1])
+    }
+  }
+
+  render(): TemplateResult {
+    return html`<div class="gw-page-host"></div>`
   }
 }
 

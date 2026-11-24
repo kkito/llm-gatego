@@ -39,6 +39,8 @@ export class GwShell extends LitElement {
   @media(max-width:820px){.ui-topbar-inner{flex-wrap:wrap;padding:10px 14px;gap:8px}.ui-nav{order:3;width:100%;flex-basis:100%}.ui-topbar-end{margin-left:auto}.ui-main{padding:18px 14px 48px}}
   `]
 
+  static properties = { title: { state: true }, path: { state: true }, version: { state: true }, nav: { state: true }, width: { state: true } }
+
   title = ''
   path = ''
   version = '1.15.0'
