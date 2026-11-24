@@ -1,6 +1,14 @@
 const esbuild = require('esbuild');
 const fs = require('fs');
 
+// Build outputs are generated artifacts. Clean them first so stale files
+// such as old CSS bundles never leak into the embedded Go assets.
+fs.rmSync('web/dist', { recursive: true, force: true });
+fs.mkdirSync('web/dist/assets', { recursive: true });
+fs.rmSync('internal/server/dist', { recursive: true, force: true });
+fs.mkdirSync('internal/server/dist/assets', { recursive: true });
+fs.writeFileSync('internal/server/dist/.gitkeep', '');
+
 const entries = [
   ['web/src/admin.ts', 'web/dist/assets/admin.js'],
 ];

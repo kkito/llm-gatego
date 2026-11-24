@@ -3,6 +3,7 @@
 VERSION := 1.15.0
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
 
+# Full build: bundle web assets first, then embed them into the Go binary.
 build: web-build
 	mkdir -p dist
 	go build $(LDFLAGS) -o dist/llm-gatego ./cmd/llm-gatego

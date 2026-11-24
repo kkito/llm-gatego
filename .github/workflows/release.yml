@@ -40,20 +40,19 @@ jobs:
           node-version: '24'
 
       - name: Install web tools
-        run: npm install -g esbuild typescript vitest happy-dom
+        run: npm install -g esbuild@0.28.2 typescript@7.0.2 vitest@5.0.5 happy-dom@21.0.4 lit@3.3.3
 
       - name: Run Go tests
         run: go test ./...
 
+      - name: Run web typecheck
+        run: make web-typecheck
+
       - name: Run web tests
-        shell: bash
-        run: |
-          cd web
-          NODE_PATH=$(npm root -g) vitest run
+        run: make web-test
 
       - name: Build web assets
-        shell: bash
-        run: NODE_PATH=$(npm root -g) node scripts/build_web.cjs
+        run: make web-build
 
       - name: Build release binaries
         shell: bash
