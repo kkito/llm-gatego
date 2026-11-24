@@ -1,0 +1,13 @@
+{
+  "name": "llm-gatego-web-fluent-experiment",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@fluentui/tokens": "1.0.0-alpha.24",
+    "@fluentui/web-components": "3.2.2",
+    "@microsoft/fast-element": "3.1.4",
+    "@microsoft/focusgroup-polyfill": "1.6.0",
+    "@swc/helpers": "0.5.15",
+    "tslib": "2.9.1"
+  }
+}

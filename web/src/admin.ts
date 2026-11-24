@@ -1,3 +1,4 @@
+import './fluent.js'
 import { api } from './api.js'
 import { modelsPage } from './views/models.js'
 import { groupsPage } from './views/groups.js'

@@ -42,6 +42,7 @@ export function shell(opts: {
   body: string
   scripts?: string
   width?: number
+  extraCSS?: string
 }): string {
   const width = opts.width ?? 1180
   const nav = opts.nav ?? adminNav
@@ -50,7 +51,7 @@ export function shell(opts: {
       (n.href === '/admin/models' && opts.path.startsWith('/admin/models/'))
     return `<a href="${n.href}" class="ui-nav-link${active ? ' is-active' : ''}">${n.icon ? `<span class="ui-nav-icon">${n.icon}</span>` : ''}<span>${escapeHtml(n.label)}</span></a>`
   }).join('')
-  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(opts.title)} · LLM Gateway</title><style>${uiCSS}${formCSS}</style></head><body>
+  return `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(opts.title)} · LLM Gateway</title><style>${uiCSS}${formCSS}${opts.extraCSS || ''}</style></head><body>
 <header class="ui-topbar"><div class="ui-topbar-inner" style="max-width:${width}px">
   <a href="/admin/models" class="ui-brand"><span class="ui-brand-mark">L</span><span>LLM Gateway</span></a>
   <nav class="ui-nav">${links}</nav>

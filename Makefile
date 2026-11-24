@@ -13,11 +13,20 @@ test:
 test-race:
 	go test -race ./...
 
-web-build:
-	NODE_PATH=$(shell npm root -g) node scripts/build_web.cjs
+NPM_GLOBAL := $(shell npm root -g)
+FLUENT_DEPS := @fluentui/web-components @fluentui/tokens @microsoft/fast-element @microsoft/focusgroup-polyfill tslib @swc/helpers
 
-web-test:
-	cd web && NODE_PATH=$(shell npm root -g) vitest run
+web-deps:
+	mkdir -p web/node_modules/@fluentui web/node_modules/@microsoft web/node_modules/@swc
+	@for p in $(FLUENT_DEPS); do \
+		if [ ! -e "web/node_modules/$$p" ]; then ln -s "$(NPM_GLOBAL)/$$p" "web/node_modules/$$p"; fi; \
+	done
+
+web-build: web-deps
+	NODE_PATH=$(NPM_GLOBAL) node scripts/build_web.cjs
+
+web-test: web-deps
+	cd web && NODE_PATH=$(NPM_GLOBAL) vitest run
 
 all: test web-test build
 
