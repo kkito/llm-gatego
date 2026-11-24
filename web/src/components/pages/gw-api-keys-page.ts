@@ -1,12 +1,13 @@
 import { html, type TemplateResult } from 'lit'
-import { postAndNavigate, submitAndNavigate } from '../../api.js'
+import { api, postAndNavigate, submitAndNavigate } from '../../api.js'
 import { currentPath } from '../../router.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, table, formField, uiCSS } from '../ui.js'
 
 export interface KeyView { id: string; name: string; key?: string; keyHint?: string; createdAt?: number }
 export interface EditingKeyView { id: string; name: string; keyHint: string }
+
+async function loadKeys(): Promise<KeyView[]> { return (await api<any[]>('/api/admin/api-keys')).data || [] }
 
 export class GwApiKeysPage extends GwPage {
   static styles = [uiCSS]
@@ -36,7 +37,7 @@ export class GwApiKeysPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadKeys().then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

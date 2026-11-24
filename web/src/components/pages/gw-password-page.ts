@@ -1,7 +1,9 @@
+import { api } from '../../api.js'
 import { html, type TemplateResult } from 'lit'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
+
+async function loadPasswordState(): Promise<undefined> { return undefined }
 
 export class GwPasswordPage extends GwPage {
   static styles = [uiCSS]
@@ -27,7 +29,7 @@ export class GwPasswordPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.hasPassword = !!d }).catch((e: Error) => { this.error = e.message })
+    return loadPasswordState().then(d => { this.hasPassword = !!d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

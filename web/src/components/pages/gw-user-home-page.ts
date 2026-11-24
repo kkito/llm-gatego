@@ -1,9 +1,12 @@
+import { api } from '../../api.js'
+import { pathSegments, queryParam, searchOf, today } from '../page-utils.js'
 import { html, type TemplateResult } from 'lit'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { panel, uiCSS } from '../ui.js'
 
 export interface UserHomeView { models: string[]; modelGroups: string[]; announcement?: string; userName?: string }
+
+async function loadUserHome(path: string): Promise<any> { const d = (await api<any>('/api/user/config')).data || {}; return { models: (d.models || []).map((m: any) => m.customModel), modelGroups: (d.modelGroups || []).map((g: any) => g.name), announcement: d.announcement, userName: queryParam(path, 'userName') } }
 
 export class GwUserHomePage extends GwPage {
   static styles = [uiCSS]
@@ -22,7 +25,7 @@ export class GwUserHomePage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadUserHome(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

@@ -1,11 +1,13 @@
 import { html, type TemplateResult } from 'lit'
-import { postAndNavigate, submitAndNavigate } from '../../api.js'
+import { pathSegments, queryParam, searchOf, today } from '../page-utils.js'
+import { api, postAndNavigate, submitAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
 
 export interface GroupFormData { name?: string; desc?: string; models?: string[] }
 export interface ModelOption { customModel: string; desc?: string }
+
+async function loadGroupForm(path: string): Promise<any> { const raw = pathSegments(path)[3] || ''; const groups = (await api<any[]>('/api/admin/model-groups')).data || []; const g = raw ? groups.find(x => x.name === decodeURIComponent(raw)) : undefined; return { group: g, models: (await api<any[]>('/api/admin/models')).data || [] } }
 
 export class GwGroupFormPage extends GwPage {
   static styles = [uiCSS]
@@ -51,7 +53,7 @@ export class GwGroupFormPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadGroupForm(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

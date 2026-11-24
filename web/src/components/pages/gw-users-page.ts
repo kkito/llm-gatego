@@ -1,11 +1,12 @@
 import { html, type TemplateResult } from 'lit'
-import { postAndNavigate } from '../../api.js'
+import { api, postAndNavigate } from '../../api.js'
 import { currentPath } from '../../router.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, uiCSS } from '../ui.js'
 
 export interface UserView { name: string; apikey: string; desc?: string; allowedModels?: string[] }
+
+async function loadUsers(): Promise<any[]> { return (await api<any[]>('/api/admin/users')).data || [] }
 
 export class GwUsersPage extends GwPage {
   static styles = [uiCSS]
@@ -31,7 +32,7 @@ export class GwUsersPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadUsers().then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

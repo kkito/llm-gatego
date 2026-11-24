@@ -1,11 +1,14 @@
+import { api } from '../../api.js'
+import { pathSegments, queryParam, searchOf, today } from '../page-utils.js'
 import { html, type TemplateResult } from 'lit'
 import { navigate } from '../../router.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { formatNumber, formatDuration } from '../../format.js'
 import { empty, pageHeader, panel, table, uiCSS } from '../ui.js'
 
 export interface UserStatsView { userName: string; start: string; end: string; totalRequests: number; successfulRequests: number; totalTokens: number; avgDuration: number; byModel: Record<string, { requests: number; totalTokens: number }>; byDate: Record<string, number> }
+
+async function loadUserStats(path: string): Promise<any> { const d = (await api<any>('/api/user/stats' + searchOf(path))).data || {}; return { userName: queryParam(path, 'userName') || 'User', start: queryParam(path, 'startDate') || today(), end: queryParam(path, 'endDate') || today(), totalRequests: d.total || 0, successfulRequests: d.successful || 0, totalTokens: d.totalTokens || 0, avgDuration: d.avgDuration || 0, byModel: d.byModel || {}, byDate: d.byDate || {} } }
 
 export class GwUserStatsPage extends GwPage {
   static styles = [uiCSS]
@@ -24,7 +27,7 @@ export class GwUserStatsPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadUserStats(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

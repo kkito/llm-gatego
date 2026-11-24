@@ -1,11 +1,12 @@
 import { html, css, type TemplateResult } from 'lit'
-import { postAndNavigate } from '../../api.js'
+import { api, postAndNavigate } from '../../api.js'
 import { currentPath } from '../../router.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, table, uiCSS } from '../ui.js'
 
 export interface ModelView { customModel: string; realModel: string; desc?: string; hidden?: boolean }
+
+async function loadModels(): Promise<any[]> { return (await api<any[]>('/api/admin/models')).data || [] }
 
 export class GwModelsPage extends GwPage {
   static styles = [uiCSS]
@@ -34,7 +35,7 @@ export class GwModelsPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadModels().then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

@@ -1,14 +1,16 @@
 import { html, type TemplateResult } from 'lit'
-import { postAndNavigate, submitAndNavigate, formToObject } from '../../api.js'
+import { pathSegments, queryParam, searchOf, today } from '../page-utils.js'
+import { api, postAndNavigate, submitAndNavigate, formToObject } from '../../api.js'
 import { currentPath } from '../../router.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, empty, uiCSS } from '../ui.js'
 
 export interface LimitView {
   type: 'rpm' | 'tpm' | 'cost'; period: 'minute' | 'hour' | 'day'; periodValue: number
   max: number; costMax: number; groupName: string; enabled: boolean; models?: string[]; desc?: string; responseText?: string
 }
+
+async function loadLimits(path: string): Promise<any[]> { const model = pathSegments(path)[2] || ''; return (await api<any[]>(`/api/admin/models/${encodeURIComponent(model)}/limits`)).data || [] }
 
 export class GwModelLimitsPage extends GwPage {
   static styles = [uiCSS]
@@ -59,7 +61,7 @@ export class GwModelLimitsPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadLimits(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

@@ -1,10 +1,12 @@
 import { html, type TemplateResult } from 'lit'
-import { submitAndNavigate } from '../../api.js'
+import { pathSegments, queryParam, searchOf, today } from '../page-utils.js'
+import { api, submitAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
 
 export interface UserFormData { name?: string; description?: string; apiKey?: string; groups?: string[]; allowedModels?: string[]; apikey?: string; [k: string]: unknown }
+
+async function loadUserForm(path: string): Promise<any> { const raw = pathSegments(path)[3] || ''; const users = (await api<any[]>('/api/admin/users')).data || []; const u = raw ? users.find(x => x.name === decodeURIComponent(raw)) : undefined; return { user: u, models: ((await api<any[]>('/api/admin/models')).data || []).map((x: any) => x.customModel) } }
 
 export class GwUserFormPage extends GwPage {
   static styles = [uiCSS]
@@ -20,7 +22,7 @@ export class GwUserFormPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadUserForm(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

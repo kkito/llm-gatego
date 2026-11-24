@@ -1,13 +1,14 @@
 import { html, type TemplateResult } from 'lit'
-import { submitAndNavigate } from '../../api.js'
+import { api, submitAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
 
 export interface PrivacyView {
   enabled: boolean; stripUserField: boolean; sanitizeFilePaths: boolean
   pathPlaceholder: string; whitelistFilter: boolean
 }
+
+async function loadPrivacy(): Promise<any> { return (await api<any>('/api/admin/privacy')).data?.settings || { enabled: false, stripUserField: false, sanitizeFilePaths: false, whitelistFilter: false, pathPlaceholder: 'USER' } }
 
 export class GwPrivacyPage extends GwPage {
   static styles = [uiCSS]
@@ -27,7 +28,7 @@ export class GwPrivacyPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadPrivacy().then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

@@ -1,11 +1,12 @@
 import { html, type TemplateResult } from 'lit'
 import { currentPath } from '../../router.js'
-import { postAndNavigate } from '../../api.js'
+import { api, postAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, empty, uiCSS } from '../ui.js'
 
 export interface GroupView { name: string; desc?: string; models: string[] }
+
+async function loadGroups(): Promise<any[]> { return (await api<any[]>('/api/admin/model-groups')).data || [] }
 
 export class GwGroupsPage extends GwPage {
   static styles = [uiCSS]
@@ -23,7 +24,7 @@ export class GwGroupsPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadGroups().then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

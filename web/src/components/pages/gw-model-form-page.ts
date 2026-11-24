@@ -1,7 +1,7 @@
 import { html, type TemplateResult } from 'lit'
-import { formToObject, postAndNavigate } from '../../api.js'
+import { pathSegments, queryParam, searchOf, today } from '../page-utils.js'
+import { api, formToObject, postAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
 import '../gw-json-editor.js'
 
@@ -9,6 +9,8 @@ export interface ModelFormView {
   customModel?: string; realModel?: string; provider?: string; baseUrl?: string; proxy?: string; apiKey?: string; desc?: string; maxContextLength?: number; defaultParams?: Record<string, any>
 }
 export interface ApiKeyOption { id: string; name: string; keyHint?: string }
+
+async function loadModelForm(path: string): Promise<any> { const parts = pathSegments(path); const raw = parts[2] === 'edit' ? (parts[3] || '') : ''; const models = (await api<any[]>('/api/admin/models')).data || []; const model = raw ? models.find(x => x.customModel === decodeURIComponent(raw)) : undefined; const keys = (await api<any[]>('/api/admin/api-keys')).data || []; const ref = model?.apiKey?.startsWith('$$') && model.apiKey.endsWith('$$') ? model.apiKey.slice(2, -2) : ''; return { model, keys, version: '1.15.0', ref } }
 
 export class GwModelFormPage extends GwPage {
   static styles = [uiCSS]
@@ -86,7 +88,7 @@ export class GwModelFormPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadModelForm(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

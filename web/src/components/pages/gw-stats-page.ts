@@ -1,7 +1,8 @@
+import { api } from '../../api.js'
+import { pathSegments, queryParam, searchOf, today } from '../page-utils.js'
 import { html, css, type TemplateResult } from 'lit'
 import { navigate } from '../../router.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { formatNumber, formatDuration } from '../../format.js'
 import { pageHeader, panel, table, uiCSS } from '../ui.js'
 
@@ -18,6 +19,20 @@ export interface StatsView {
 }
 
 const colors = ['#ebedf0', '#9be9a8', '#40c463', '#30a14e', '#216e39']
+
+async function loadStats(path: string): Promise<any> {
+  const d = (await api<any>('/api/admin/stats' + searchOf(path))).data || {}
+  return {
+    startDate: queryParam(path, 'startDate') || today(), endDate: queryParam(path, 'endDate') || queryParam(path, 'startDate') || today(),
+    dateRange: d.dateRange || '', userName: queryParam(path, 'userName'), model: queryParam(path, 'model'),
+    totalRequests: d.totalRequests || 0, successfulRequests: d.successfulRequests || 0, failedRequests: d.failedRequests || 0,
+    totalInputTokens: d.totalInputTokens || 0, totalOutputTokens: d.totalOutputTokens || 0,
+    totalTokens: d.totalTokens || 0, totalCachedTokens: d.totalCachedTokens || 0, avgDuration: d.avgDuration || 0,
+    byModel: d.byModel || {}, byDate: d.byDate || {}, byHour: d.byHour || {},
+    dailyHeatmap: d.dailyHeatmap || [], heatmapStart: d.heatmapStart || '', heatmapEnd: d.heatmapEnd || '',
+    page: d.page, totalPages: d.totalPages, details: d.details || [],
+  }
+}
 
 export class GwStatsPage extends GwPage {
   static styles = [uiCSS, css`.heatmap-tip{position:fixed;z-index:9999;pointer-events:none;background:#101828;color:#fff;font-size:12px;padding:5px 8px;border-radius:6px;white-space:nowrap;display:none;box-shadow:0 6px 18px rgba(16,24,40,.22)}`]
@@ -57,7 +72,7 @@ export class GwStatsPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadStats(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {

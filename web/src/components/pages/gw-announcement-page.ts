@@ -1,8 +1,9 @@
 import { html, type TemplateResult } from 'lit'
-import { submitAndNavigate } from '../../api.js'
+import { api, submitAndNavigate } from '../../api.js'
 import { GwPage } from '../gw-page.js'
-import { loadData } from '../loaders.js'
 import { pageHeader, panel, notice, uiCSS } from '../ui.js'
+
+async function loadAnnouncement(): Promise<string> { return (await api<any>('/api/admin/announcement')).data?.content || '' }
 
 export class GwAnnouncementPage extends GwPage {
   static styles = [uiCSS]
@@ -21,7 +22,7 @@ export class GwAnnouncementPage extends GwPage {
   }
 
   protected load(): Promise<void> {
-    return loadData(this.path).then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
+    return loadAnnouncement().then(d => { this.data = d }).catch((e: Error) => { this.error = e.message })
   }
 
   protected renderPage(): TemplateResult {
