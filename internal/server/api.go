@@ -18,14 +18,23 @@ type APIError struct {
 	Message string `json:"message"`
 }
 type Envelope[T any] struct {
-	OK    bool      `json:"ok"`
-	Data  *T        `json:"data,omitempty"`
-	Error *APIError `json:"error,omitempty"`
+	OK       bool      `json:"ok"`
+	Data     *T        `json:"data,omitempty"`
+	Error    *APIError `json:"error,omitempty"`
+	Redirect string    `json:"redirect,omitempty"`
 }
 
 func okJSON[T any](w http.ResponseWriter, data T) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(Envelope[T]{OK: true, Data: &data})
+}
+
+// okJSONRedirect extends the normal success envelope with the page the old
+// form flow would have redirected to. The SPA uses it for post-write
+// navigation; older clients simply ignore the extra field.
+func okJSONRedirect[T any](w http.ResponseWriter, data T, redirect string) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(Envelope[T]{OK: true, Data: &data, Redirect: redirect})
 }
 func fail(w http.ResponseWriter, code int, msg string) {
 	w.Header().Set("Content-Type", "application/json")
@@ -104,7 +113,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, m)
+		okJSONRedirect(w, m, "/admin/models")
 	})
 	mux.HandleFunc("POST /api/admin/models/edit/{model}", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
@@ -178,7 +187,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, *m)
+		okJSONRedirect(w, *m, "/admin/models")
 	})
 	mux.HandleFunc("POST /api/admin/models/delete/{model}", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
@@ -195,7 +204,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, map[string]any{"deleted": true})
+		okJSONRedirect(w, map[string]any{"deleted": true}, "/admin/models")
 	})
 	mux.HandleFunc("POST /api/admin/models/copy/{model}", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
@@ -228,7 +237,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, copy)
+		okJSONRedirect(w, copy, "/admin/models")
 	})
 	mux.HandleFunc("POST /api/admin/models/move/{model}", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
@@ -254,7 +263,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, cfg.Models)
+		okJSONRedirect(w, cfg.Models, "/admin/models")
 	})
 	mux.HandleFunc("POST /api/admin/models/toggle-hidden/{model}", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
@@ -267,7 +276,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			if cfg.Models[i].CustomModel == r.PathValue("model") {
 				cfg.Models[i].Hidden = !cfg.Models[i].Hidden
 				found = true
-				okJSON(w, cfg.Models[i])
+				okJSONRedirect(w, cfg.Models[i], "/admin/models")
 				break
 			}
 		}
@@ -286,7 +295,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, cfg.ModelGroups)
+		okJSONRedirect(w, cfg.ModelGroups, "/admin/model-groups")
 	})
 	mux.HandleFunc("POST /api/admin/model-groups", func(w http.ResponseWriter, r *http.Request) {
 		var in config.ModelGroup
@@ -314,7 +323,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, in)
+		okJSONRedirect(w, in, "/admin/model-groups")
 	})
 	mux.HandleFunc("POST /api/admin/model-groups/edit/{name}", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
@@ -344,7 +353,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 					fail(w, 500, err.Error())
 					return
 				}
-				okJSON(w, cfg.ModelGroups[i])
+				okJSONRedirect(w, cfg.ModelGroups[i], "/admin/model-groups")
 				return
 			}
 		}
@@ -365,7 +374,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, map[string]any{"deleted": true})
+		okJSONRedirect(w, map[string]any{"deleted": true}, "/admin/model-groups")
 	})
 	mux.HandleFunc("POST /api/admin/model-groups/edit/{name}/add-model", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
@@ -386,7 +395,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 					fail(w, 500, err.Error())
 					return
 				}
-				okJSON(w, cfg.ModelGroups[i])
+				okJSONRedirect(w, cfg.ModelGroups[i], "/admin/model-groups")
 				return
 			}
 		}
@@ -423,7 +432,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, map[string]any{"name": in.Name})
+		okJSONRedirect(w, map[string]any{"name": in.Name}, "/admin/api-keys")
 	})
 	mux.HandleFunc("POST /api/admin/api-keys/delete/{id}", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
@@ -442,7 +451,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, map[string]any{"deleted": true})
+		okJSONRedirect(w, map[string]any{"deleted": true}, "/admin/api-keys")
 	})
 	mux.HandleFunc("GET /api/admin/users", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
@@ -467,7 +476,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, in)
+		okJSONRedirect(w, in, "/admin/users")
 	})
 	mux.HandleFunc("POST /api/admin/users/delete/{name}", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
@@ -486,7 +495,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 			fail(w, 500, err.Error())
 			return
 		}
-		okJSON(w, map[string]any{"deleted": true})
+		okJSONRedirect(w, map[string]any{"deleted": true}, "/admin/users")
 	})
 	mux.HandleFunc("GET /api/admin/privacy", func(w http.ResponseWriter, r *http.Request) {
 		cfg, err := d.load()
@@ -551,7 +560,7 @@ func RegisterAdminAPIs(mux *http.ServeMux, d APIDeps) {
 		}
 		id := util.SHA256Password(in.Password + strconv.Itoa(os.Getpid()))[:32]
 		auth.SetSession(id)
-		okJSON(w, map[string]any{"session": id})
+		okJSONRedirect(w, map[string]any{"session": id}, "/admin/models")
 	})
 }
 func passwordHandler(w http.ResponseWriter, r *http.Request, d APIDeps) {
@@ -632,7 +641,7 @@ func RegisterUserAPIs(mux *http.ServeMux, d APIDeps) {
 			return
 		}
 		http.SetCookie(w, &http.Cookie{Name: "user_session", Value: id, Path: "/", HttpOnly: true})
-		okJSON(w, map[string]any{"session": id})
+		okJSONRedirect(w, map[string]any{"session": id}, "/user/main")
 	})
 	mux.HandleFunc("POST /api/user/logout", func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie("user_session"); err == nil {

@@ -458,7 +458,7 @@ func registerUsersExtraAPI(mux *http.ServeMux, d APIDeps) {
 					fail(w, 500, err.Error())
 					return
 				}
-				okJSON(w, in)
+				okJSONRedirect(w, in, "/admin/users")
 				return
 			}
 		}
@@ -492,7 +492,7 @@ func registerGroupsExtraAPI(mux *http.ServeMux, d APIDeps) {
 					fail(w, 500, err.Error())
 					return
 				}
-				okJSON(w, cfg.ModelGroups[i])
+				okJSONRedirect(w, cfg.ModelGroups[i], "/admin/model-groups")
 				return
 			}
 		}
@@ -534,7 +534,7 @@ func registerGroupsExtraAPI(mux *http.ServeMux, d APIDeps) {
 					fail(w, 500, err.Error())
 					return
 				}
-				okJSON(w, cfg.ModelGroups[i])
+				okJSONRedirect(w, cfg.ModelGroups[i], "/admin/model-groups")
 				return
 			}
 		}
