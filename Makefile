@@ -1,4 +1,4 @@
-.PHONY: build test test-race web-build web-test all clean
+.PHONY: build test test-race web-deps web-build web-test all clean
 
 VERSION := 1.15.0
 LDFLAGS := -ldflags "-X main.version=$(VERSION)"
@@ -13,11 +13,19 @@ test:
 test-race:
 	go test -race ./...
 
-web-build:
-	NODE_PATH=$(shell npm root -g) node scripts/build_web.cjs
+NPM_GLOBAL := $(shell npm root -g)
 
-web-test:
-	cd web && NODE_PATH=$(shell npm root -g) vitest run
+web-deps:
+	@mkdir -p web/node_modules
+	@for p in lit @lit; do \
+	  if [ ! -e web/node_modules/$$p ]; then ln -s $(NPM_GLOBAL)/$$p web/node_modules/$$p; fi; \
+	done
+
+web-build: web-deps
+	NODE_PATH=$(NPM_GLOBAL) node scripts/build_web.cjs
+
+web-test: web-deps
+	cd web && NODE_PATH=$(NPM_GLOBAL) vitest run
 
 all: test web-test build
 
