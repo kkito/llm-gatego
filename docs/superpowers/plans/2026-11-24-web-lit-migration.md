@@ -25,13 +25,14 @@
 
 **Files:**
 - Create: `web/package.json`
-- Create: `web/src/styles/tokens.ts`
+- Create: `web/src/styles/tokens.ts` (exports plain `globalCSSString` for the build script)
+- Create: `web/src/styles/tokens-lit.ts` (exports `globalCSS = unsafeCSS(globalCSSString)`)
 - Modify: `scripts/build_web.cjs`
 - Test: `web/tests/indexBootstrap.test.ts` (existing, must stay green)
 
 **Interfaces:**
-- Consumes: existing global `lit@3.3.3`, `esbuild`, `vitest`, `happy-dom`
-- Produces: `web/src/styles/tokens.ts` exporting `globalCSS: CSSResult` (Lit `css` tagged template) containing `:root` variables from `uiCSS` + reset; `web/package.json` declaring exact versions so future `npm install` is reproducible
+- Consumes: existing global versions verified at plan-authoring time: `lit@3.3.3`, `esbuild@0.28.2`, `happy-dom@21.0.4`, `typescript@7.0.2`, `vitest@5.0.5`
+- Produces: `web/src/styles/tokens.ts` exporting `globalCSSString: string` (no imports, readable by build script); `web/src/styles/tokens-lit.ts` exporting `globalCSS: CSSResult`; `web/package.json` pinning the exact versions above
 
 - [ ] **Step 1: Create `web/package.json`**
 
@@ -44,35 +45,36 @@
     "lit": "3.3.3"
   },
   "devDependencies": {
-    "esbuild": "0.25.0",
-    "happy-dom": "20.0.0",
-    "typescript": "5.8.2",
+    "esbuild": "0.28.2",
+    "happy-dom": "21.0.4",
+    "typescript": "7.0.2",
     "vitest": "5.0.5"
   }
 }
 ```
-(use versions from `npm root -g` actually installed; verify with `node -e "for (const p of ['lit','esbuild','happy-dom','typescript','vitest']) console.log(p, require(require('path').join(process.env.HOME,'.nvm/versions/node/v24.16.0/lib/node_modules',p,'package.json')).version)"` and adjust to match — the point is exact pins, not guessing)
 
-- [ ] **Step 2: Run verification command to confirm exact versions**
-
-Run: `node -e "for (const p of ['lit','esbuild','happy-dom','typescript','vitest']) { const j=require(require('path').join(require('child_process').execSync('npm root -g').toString().trim(),p,'package.json')); console.log(p, j.version) }"`
-Expected: prints 5 version numbers; update `web/package.json` to those exact versions if they differ.
-
-- [ ] **Step 3: Create `web/src/styles/tokens.ts`**
+- [ ] **Step 2: Create `web/src/styles/tokens.ts`** (plain string, no imports; build script reads this file and extracts the template literal body)
 
 ```ts
-import { css } from 'lit'
-
 // Global custom properties: keep on :root so they inherit into every
 // component's shadow root. Reset rules that must target html/body also
 // live here; component-specific CSS lives in each component's static styles.
-export const globalCSS = css`
+export const globalCSSString = `
 :root{--ui-bg:#F6F8FB;--ui-panel:#fff;--ui-line:#E3E8EF;--ui-ink:#111827;--ui-muted:#64748B;--ui-accent:#2563EB;--ui-soft:#EFF4FF;--ui-radius:14px}
 *{box-sizing:border-box}html,body{margin:0;padding:0}
 body{background:var(--ui-bg);color:var(--ui-ink);font:14px/1.55 Inter,"Noto Sans SC",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:var(--ui-accent);text-decoration:none}a:hover{text-decoration:none}
 `
 ```
+
+- [ ] **Step 3: Create `web/src/styles/tokens-lit.ts`**
+
+```ts
+import { unsafeCSS } from 'lit'
+import { globalCSSString } from './tokens.js'
+export const globalCSS = unsafeCSS(globalCSSString)
+```
+(`unsafeCSS` returns a `CSSResult` suitable for `static styles` arrays; the CSS string is authored by us, not user input.)
 
 - [ ] **Step 4: Verify tests still green before code changes**
 
@@ -82,7 +84,7 @@ Expected: 5 files / 36 tests pass (no behavior change yet)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add web/package.json web/src/styles/tokens.ts scripts/build_web.cjs
+git add web/package.json web/src/styles/tokens.ts web/src/styles/tokens-lit.ts scripts/build_web.cjs
 git commit -m "chore(web): pin lit deps and add global CSS tokens"
 ```
 
@@ -96,7 +98,7 @@ git commit -m "chore(web): pin lit deps and add global CSS tokens"
 - Test: `web/tests/shell.test.ts` (new)
 
 **Interfaces:**
-- Consumes: `globalCSS` from `web/src/styles/tokens.ts`, `escapeHtml` from `format.ts` (not needed for Lit templates — Lit auto-escapes; remove all `escapeHtml()` calls in templates)
+- Consumes: `globalCSS` from `web/src/styles/tokens-lit.ts`, `adminNav`/`userNav` moved here from `ui/shell.ts`; Lit auto-escapes template values, so remove `escapeHtml()` calls in templates
 - Produces: `GwShell` custom element `<gw-shell>` with properties: `title: string`, `path: string`, `version: string`, `nav?: NavItem[]`, `width?: number`; it renders `<slot>` for page content; helper functions `pageHeader(opts)`, `panel(opts)`, `notice(message, kind)`, `empty(title, hint, action?)`, `table(headers, rows)` returning `TemplateResult`; exported `adminNav`, `userNav` arrays matching `ui/shell.ts`
 
 - [ ] **Step 1: Write failing test `web/tests/shell.test.ts`**
@@ -130,7 +132,7 @@ Expected: FAIL — module `../src/components/gw-shell.js` not found
 
 ```ts
 import { LitElement, css, html, type TemplateResult } from 'lit'
-import { globalCSS } from '../styles/tokens.js'
+import { globalCSS } from '../styles/tokens-lit.js'
 
 export interface NavItem { href: string; label: string; icon?: string }
 
@@ -275,12 +277,11 @@ export function routeForPath(path: string): string {
 ```ts
 import './components/gw-app.js'
 export { startWhenReady } from './components/gw-app.js' // re-export for existing bootstrap test
-// keep `export async function renderAdmin` only until Tasks 4-7 land; after that delete it
 if (typeof document !== 'undefined') startWhenReady(document, () => {
   if (!customElements.get('gw-app')) customElements.define('gw-app', GwApp)
 })
 ```
-(keep `renderAdmin` exported during transition so `indexBootstrap.test.ts` can still run; delete in Task 7 cleanup.)
+(keep `renderAdmin` in `admin.ts` during transition so `indexBootstrap.test.ts` can still run; delete in Task 7 cleanup. The `startWhenReady` re-export must come from `admin.ts`'s own definition, not `gw-app.ts`; use `export { startWhenReady }` at the bottom of the file where it is defined.)
 
 - [ ] **Step 5: Modify `web/index.html`** to contain global style placeholder and `<gw-app>`:
 
@@ -288,7 +289,7 @@ if (typeof document !== 'undefined') startWhenReady(document, () => {
 <!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>LLM Gateway</title><!-- GLOBAL_CSS --></head><body><gw-app></gw-app><script defer src="/assets/admin.js"></script></body></html>
 ```
 
-- [ ] **Step 6: Update `scripts/build_web.cjs`** to replace `<!-- GLOBAL_CSS -->` with `<style>...</style>` containing the CSS string from `web/src/styles/tokens.ts` (read file, regex-extract template literal body; or simpler: write a small `web/scripts/emit-global-css.mjs` that imports `globalCSS.cssText` via esbuild and prints it — choose regex extraction to avoid a second build step). Write result to `web/dist/index.html`.
+- [ ] **Step 6: Update `scripts/build_web.cjs`** to replace `<!-- GLOBAL_CSS -->` with `<style>...</style>`: read `web/src/styles/tokens.ts`, regex-match `globalCSSString = \`([\s\S]*?)\``, capture group 1 is the raw CSS string. Insert it into the HTML and write `web/dist/index.html`. No second build step needed because `tokens.ts` has no imports.
 
 - [ ] **Step 7: Run all tests**
 
@@ -503,7 +504,7 @@ Expected: FAIL — modules not found
 - [ ] **Step 6: Run all tests; delete old view/style/shell files**
 
 Run: `cd web && NODE_PATH=$(npm root -g) vitest run`
-Expected: all pass. Then `git rm web/src/views/ web/src/ui/ web/src/styles/*.ts` (keep `styles/tokens.ts`).
+Expected: all pass. Then `git rm -r web/src/views/ web/src/ui/ web/src/styles/*.ts` (keep `styles/tokens.ts` and `styles/tokens-lit.ts`).
 
 - [ ] **Step 7: Commit**
 
