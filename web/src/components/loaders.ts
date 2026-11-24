@@ -5,7 +5,8 @@ const today = (): string => new Date().toISOString().slice(0, 10)
 
 // Same data shape the legacy renderers consumed. Kept here verbatim so the
 // transition from string HTML to Lit page components cannot change API calls.
-export async function loadData(pathname: string): Promise<any> {
+export async function loadData(path: string): Promise<any> {
+  const pathname = path.split('?')[0].split('#')[0]
   if (pathname === '/') return []
   if (pathname === '/admin/models') return (await api<any[]>('/api/admin/models')).data || []
   if (pathname === '/admin/model-groups') return (await api<any[]>('/api/admin/model-groups')).data || []

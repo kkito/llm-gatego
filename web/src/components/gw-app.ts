@@ -1,5 +1,6 @@
 import { LitElement, html, css, type TemplateResult } from 'lit'
 import { globalCSS } from '../styles/tokens-lit.js'
+import { currentPath, subscribe } from '../router.js'
 
 // Import for side effects: registers every page custom element.
 import './gw-shell.js'
@@ -54,17 +55,26 @@ export function routeForPath(pathname: string): string {
 export class GwApp extends LitElement {
   static styles = css`${globalCSS}:host{display:block}`
 
-  private path = location.pathname
+  static properties = { path: { state: true } }
+
+  path = currentPath()
+  private unsubscribe?: () => void
 
   connectedCallback(): void {
     super.connectedCallback()
-    if (this.path === '/') { location.replace('/admin/models'); return }
+    if (this.path === '/') { history.replaceState({}, '', '/admin/models'); this.path = currentPath() }
+    this.unsubscribe = subscribe(path => { this.path = path })
+  }
+
+  disconnectedCallback(): void {
+    this.unsubscribe?.()
+    super.disconnectedCallback()
   }
 
   protected updated(): void {
     const host = this.shadowRoot?.querySelector('.gw-page-host')
     if (!host) return
-    const route = matchRoute(this.path)
+    const route = matchRoute(this.path.split('?')[0].split('#')[0])
     if (!route) return
     let page = host.firstElementChild as any
     if (!page || page.tagName.toLowerCase() !== route.page) {
@@ -72,7 +82,8 @@ export class GwApp extends LitElement {
       page = document.createElement(route.page) as any
       host.appendChild(page)
     }
-    const m = this.path.match(/^\/admin\/models\/([^/]+)\/limits$/)
+    const pathname = this.path.split('?')[0].split('#')[0]
+    const m = pathname.match(/^\/admin\/models\/([^/]+)\/limits$/)
     Object.assign(page, {
       path: this.path,
       ...(route.title ? { title: route.title } : {}),
